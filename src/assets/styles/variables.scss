@@ -1,0 +1,123 @@
+// 主题色彩系统
+:root {
+  // 主色调
+  --primary-color: #6366f1;
+  --primary-light: #818cf8;
+  --primary-dark: #4f46e5;
+
+  // 背景色
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #16213e;
+  --bg-card: #1e1e3f;
+
+  // 文字色
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0b0;
+  --text-muted: #6b6b80;
+
+  // 边框色
+  --border-color: #2a2a4a;
+  --border-light: #3a3a5a;
+
+  // 积木分类颜色
+  --block-basic: #6366f1;
+  --block-control: #f59e0b;
+  --block-excel: #10b981;
+  --block-data: #3b82f6;
+  --block-interaction: #ec4899;
+  --block-file: #8b5cf6;
+  --block-advanced: #ef4444;
+
+  // 状态色
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+
+  // 阴影
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+  // 圆角
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  // 过渡
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+}
+
+// 深色主题（默认）
+[data-theme='dark'] {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #16213e;
+  --bg-card: #1e1e3f;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0b0;
+  --border-color: #2a2a4a;
+}
+
+// 浅色主题
+[data-theme='light'] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --border-color: #e2e8f0;
+}
+
+// 积木分类颜色映射
+$block-colors: (
+  'basic': var(--block-basic),
+  'control_flow': var(--block-control),
+  'excel': var(--block-excel),
+  'data': var(--block-data),
+  'interaction': var(--block-interaction),
+  'file': var(--block-file),
+  'advanced': var(--block-advanced)
+);
+
+// 混入
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin glass-effect {
+  background: rgba(26, 26, 46, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+}
+
+@mixin scrollbar-style {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+
+    &:hover {
+      background: var(--border-light);
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "version": "1.0.0",
+  "name": "Excel 数据处理示例",
+  "description": "演示基本的 VBA 功能：变量声明、循环、单元格操作",
+  "blocks": [
+    {
+      "id": "block-sub-1",
+      "definitionId": "block-sub-define",
+      "type": "sub_define",
+      "position": { "x": 100, "y": 50 },
+      "properties": { "subName": "ProcessData" },
+      "order": 1
+    },
+    {
+      "id": "block-var-1",
+      "definitionId": "block-variable-declare",
+      "type": "variable_declare",
+      "position": { "x": 100, "y": 150 },
+      "properties": { "varName": "i", "varType": "Integer" },
+      "order": 2
+    },
+    {
+      "id": "block-var-2",
+      "definitionId": "block-variable-declare",
+      "type": "variable_declare",
+      "position": { "x": 320, "y": 150 },
+      "properties": { "varName": "total", "varType": "Double" },
+      "order": 3
+    },
+    {
+      "id": "block-var-3",
+      "definitionId": "block-variable-declare",
+      "type": "variable_declare",
+      "position": { "x": 540, "y": 150 },
+      "properties": { "varName": "cellValue", "varType": "Variant" },
+      "order": 4
+    },
+    {
+      "id": "block-assign-1",
+      "definitionId": "block-assignment",
+      "type": "assignment",
+      "position": { "x": 100, "y": 230 },
+      "properties": { "varName": "total", "value": "0" },
+      "order": 5
+    },
+    {
+      "id": "block-for-1",
+      "definitionId": "block-for-loop",
+      "type": "for_loop",
+      "position": { "x": 100, "y": 310 },
+      "properties": { "counter": "i", "start": "1", "end": "10", "step": "1" },
+      "order": 6
+    },
+    {
+      "id": "block-cell-read-1",
+      "definitionId": "block-cell-read",
+      "type": "cell_read",
+      "position": { "x": 100, "y": 410 },
+      "properties": { "cellRef": "A1", "varName": "cellValue" },
+      "order": 7
+    },
+    {
+      "id": "block-assign-2",
+      "definitionId": "block-assignment",
+      "type": "assignment",
+      "position": { "x": 320, "y": 410 },
+      "properties": { "varName": "total", "value": "total + cellValue" },
+      "order": 8
+    },
+    {
+      "id": "block-cell-write-1",
+      "definitionId": "block-cell-write",
+      "type": "cell_write",
+      "position": { "x": 100, "y": 490 },
+      "properties": { "cellRef": "B1", "value": "cellValue * 2" },
+      "order": 9
+    },
+    {
+      "id": "block-msgbox-1",
+      "definitionId": "block-msgbox",
+      "type": "msgbox",
+      "position": { "x": 100, "y": 570 },
+      "properties": { "message": "处理完成!", "buttons": "vbOKOnly", "title": "提示" },
+      "order": 10
+    }
+  ],
+  "connections": [
+    { "id": "conn-1", "sourceBlockId": "block-sub-1", "sourcePortId": "out", "targetBlockId": "block-var-1", "targetPortId": "in" },
+    { "id": "conn-2", "sourceBlockId": "block-var-1", "sourcePortId": "out", "targetBlockId": "block-var-2", "targetPortId": "in" },
+    { "id": "conn-3", "sourceBlockId": "block-var-2", "sourcePortId": "out", "targetBlockId": "block-var-3", "targetPortId": "in" },
+    { "id": "conn-4", "sourceBlockId": "block-var-3", "sourcePortId": "out", "targetBlockId": "block-assign-1", "targetPortId": "in" },
+    { "id": "conn-5", "sourceBlockId": "block-assign-1", "sourcePortId": "out", "targetBlockId": "block-for-1", "targetPortId": "in" },
+    { "id": "conn-6", "sourceBlockId": "block-for-1", "sourcePortId": "out", "targetBlockId": "block-cell-read-1", "targetPortId": "in" },
+    { "id": "conn-7", "sourceBlockId": "block-cell-read-1", "sourcePortId": "out", "targetBlockId": "block-assign-2", "targetPortId": "in" },
+    { "id": "conn-8", "sourceBlockId": "block-assign-2", "sourcePortId": "out", "targetBlockId": "block-cell-write-1", "targetPortId": "in" },
+    { "id": "conn-9", "sourceBlockId": "block-cell-write-1", "sourcePortId": "out", "targetBlockId": "block-msgbox-1", "targetPortId": "in" }
+  ],
+  "graphData": {
+    "cells": []
+  }
+}
