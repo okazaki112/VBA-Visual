@@ -1,9 +1,7 @@
 [English](./README.md) | [简体中文](./README_CN.md)
 
 <div align="center">
-  <video src="public/test1.mp4" controls width="600" poster="public/test.png">
-    Your browser does not support video playback
-  </video>
+  <img src="public/demo.gif" alt="VBA Visual Demo" width="600">
   
   <h1>VBA Visual Editor</h1>
   
