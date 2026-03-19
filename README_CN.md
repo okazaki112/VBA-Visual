@@ -24,6 +24,16 @@
 
 ---
 
+## 界面截图
+
+<div align="center">
+  <img src="public/001.png" alt="截图 1" width="400">
+  <img src="public/002.png" alt="截图 2" width="400">
+  <img src="public/003.png" alt="截图 3" width="400">
+  <img src="public/004.png" alt="截图 4" width="400">
+  <img src="public/005.png" alt="截图 5" width="400">
+</div>
+
 ## 功能特性
 
 - **可视化积木编程** - 拖拽积木块即可生成 VBA 代码，无需手写代码
