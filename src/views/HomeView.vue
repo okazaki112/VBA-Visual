@@ -32,6 +32,36 @@
         </el-card>
       </div>
 
+      <!-- 项目模板 -->
+      <div class="templates-section">
+        <h2>项目模板</h2>
+        <div class="template-categories">
+          <el-radio-group v-model="selectedCategory" size="small">
+            <el-radio-button value="all">全部</el-radio-button>
+            <el-radio-button value="basic">基础</el-radio-button>
+            <el-radio-button value="excel">Excel</el-radio-button>
+            <el-radio-button value="automation">自动化</el-radio-button>
+          </el-radio-group>
+        </div>
+        <div class="template-grid">
+          <el-card 
+            v-for="template in filteredTemplates" 
+            :key="template.id"
+            class="template-card"
+            shadow="hover"
+            @click="loadTemplate(template)"
+          >
+            <div class="template-icon">
+              <el-icon :size="32"><component :is="getIcon(template.icon)" /></el-icon>
+            </div>
+            <div class="template-info">
+              <h4>{{ template.name }}</h4>
+              <p>{{ template.description }}</p>
+            </div>
+          </el-card>
+        </div>
+      </div>
+
       <div class="recent-projects" v-if="recentProjects.length > 0">
         <h2>最近项目</h2>
         <div class="project-list">
@@ -54,13 +84,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plus, FolderOpened, Document, Collection } from '@element-plus/icons-vue'
+import { 
+  Plus, FolderOpened, Document, Collection, 
+  ChatDotRound, Refresh, QuestionFilled 
+} from '@element-plus/icons-vue'
 import { useBlockStore } from '@/stores/blockStore'
 import { useCanvasStore } from '@/stores/canvasStore'
 import type { ProjectData } from '@/stores/canvasStore'
 import demoProjectRaw from '@/assets/examples/demo-project.json'
+import { projectTemplates, type ProjectTemplate } from '@/assets/templates/projectTemplates'
 
 const demoProject = demoProjectRaw as unknown as ProjectData
 
@@ -69,6 +103,24 @@ const blockStore = useBlockStore()
 const canvasStore = useCanvasStore()
 
 const recentProjects = ref<Array<{ id: string; name: string; date: string }>>([])
+const selectedCategory = ref('all')
+
+const filteredTemplates = computed(() => {
+  if (selectedCategory.value === 'all') {
+    return projectTemplates
+  }
+  return projectTemplates.filter(t => t.category === selectedCategory.value)
+})
+
+const getIcon = (iconName: string) => {
+  const icons: Record<string, any> = {
+    ChatDotRound,
+    Refresh,
+    Document,
+    QuestionFilled
+  }
+  return icons[iconName] || Document
+}
 
 const createNewProject = () => {
   // 清空当前项目
@@ -101,6 +153,30 @@ const loadDemoProject = () => {
   router.push('/editor')
 }
 
+const loadTemplate = (template: ProjectTemplate) => {
+  // 清空当前项目
+  blockStore.clearBlocks()
+  canvasStore.clearConnections()
+  
+  // 加载模板数据
+  if (template.data.blocks) {
+    template.data.blocks.forEach((block: any) => {
+      blockStore.addBlock(block)
+    })
+  }
+  
+  if (template.data.connections) {
+    template.data.connections.forEach((conn: any) => {
+      blockStore.addConnection(conn)
+    })
+  }
+  
+  // 存储模板的完整数据
+  canvasStore.setProjectData(template.data)
+  
+  router.push('/editor')
+}
+
 const openProject = async () => {
   const result = await window.electronAPI?.dialog.open({
     filters: [{ name: 'VBA 项目', extensions: ['vba.json'] }],
@@ -126,6 +202,7 @@ const openRecentProject = (_project: { id: string }) => {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+  overflow-y: auto;
 }
 
 .home-content {
@@ -202,6 +279,77 @@ const openRecentProject = (_project: { id: string }) => {
     
     h3 {
       color: #10b981;
+    }
+  }
+}
+
+.templates-section {
+  margin-bottom: 48px;
+  text-align: left;
+
+  h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+  }
+}
+
+.template-categories {
+  margin-bottom: 16px;
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.template-card {
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+
+  &:hover {
+    transform: translateY(-2px);
+    border-color: var(--primary-color) !important;
+    box-shadow: var(--shadow-md);
+  }
+
+  :deep(.el-card__body) {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .template-icon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    color: var(--primary-color);
+    flex-shrink: 0;
+  }
+
+  .template-info {
+    flex: 1;
+    min-width: 0;
+
+    h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    p {
+      font-size: 12px;
+      color: var(--text-secondary);
     }
   }
 }

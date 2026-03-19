@@ -305,6 +305,233 @@ Loop`
     codeTemplate: 'Range("{{cellRef}}").Formula = "{{formula}}"'
   },
 
+  // ==================== 图表操作积木 ====================
+  {
+    id: 'block-chart-create',
+    type: BlockType.CHART_CREATE,
+    category: BlockCategory.EXCEL,
+    label: '创建图表',
+    description: '创建一个新的图表',
+    icon: 'TrendCharts',
+    color: '#0ea5e9',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'varName', name: 'varName', type: 'text', label: '图表变量', defaultValue: 'cht', placeholder: '存储图表对象的变量名' },
+      { id: 'chartType', name: 'chartType', type: 'select', label: '图表类型', defaultValue: 'xlColumnClustered', options: [
+        { label: '柱状图', value: 'xlColumnClustered' },
+        { label: '条形图', value: 'xlBarClustered' },
+        { label: '折线图', value: 'xlLine' },
+        { label: '饼图', value: 'xlPie' },
+        { label: '面积图', value: 'xlArea' },
+        { label: '散点图', value: 'xlXYScatter' },
+        { label: '雷达图', value: 'xlRadar' }
+      ]},
+      { id: 'left', name: 'left', type: 'number', label: '左边距', defaultValue: 100 },
+      { id: 'top', name: 'top', type: 'number', label: '上边距', defaultValue: 100 },
+      { id: 'width', name: 'width', type: 'number', label: '宽度', defaultValue: 300 },
+      { id: 'height', name: 'height', type: 'number', label: '高度', defaultValue: 200 }
+    ],
+    codeTemplate: `Dim {{varName}} As Chart
+Set {{varName}} = ActiveSheet.Shapes.AddChart({{chartType}}, {{left}}, {{top}}, {{width}}, {{height}}).Chart`
+  },
+
+  {
+    id: 'block-chart-set-source',
+    type: BlockType.CHART_SET_SOURCE,
+    category: BlockCategory.EXCEL,
+    label: '设置图表数据源',
+    description: '设置图表的数据源范围',
+    icon: 'DataLine',
+    color: '#0ea5e9',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'chartName', name: 'chartName', type: 'expression', label: '图表变量', defaultValue: 'cht', placeholder: '图表对象变量名' },
+      { id: 'sourceRange', name: 'sourceRange', type: 'text', label: '数据源范围', defaultValue: 'A1:B10', placeholder: '例如: A1:B10' },
+      { id: 'plotBy', name: 'plotBy', type: 'select', label: '绘图方式', defaultValue: 'xlColumns', options: [
+        { label: '按列', value: 'xlColumns' },
+        { label: '按行', value: 'xlRows' }
+      ]}
+    ],
+    codeTemplate: '{{chartName}}.SetSourceData Source:=Range("{{sourceRange}}"), PlotBy:={{plotBy}}'
+  },
+
+  {
+    id: 'block-chart-set-title',
+    type: BlockType.CHART_SET_TITLE,
+    category: BlockCategory.EXCEL,
+    label: '设置图表标题',
+    description: '设置图表的标题文字',
+    icon: 'Edit',
+    color: '#0ea5e9',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'chartName', name: 'chartName', type: 'expression', label: '图表变量', defaultValue: 'cht', placeholder: '图表对象变量名' },
+      { id: 'title', name: 'title', type: 'text', label: '标题文字', defaultValue: '图表标题', placeholder: '图表标题' },
+      { id: 'showTitle', name: 'showTitle', type: 'boolean', label: '显示标题', defaultValue: true }
+    ],
+    codeTemplate: `{{chartName}}.HasTitle = {{showTitle}}
+{{#if showTitle}}{{chartName}}.ChartTitle.Text = "{{title}}"{{/if}}`
+  },
+
+  {
+    id: 'block-chart-delete',
+    type: BlockType.CHART_DELETE,
+    category: BlockCategory.EXCEL,
+    label: '删除图表',
+    description: '删除指定的图表',
+    icon: 'Delete',
+    color: '#0ea5e9',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'chartName', name: 'chartName', type: 'expression', label: '图表变量', defaultValue: 'cht', placeholder: '图表对象变量名' }
+    ],
+    codeTemplate: '{{chartName}}.Parent.Delete'
+  },
+
+  // ==================== 条件格式积木 ====================
+  {
+    id: 'block-conditional-format',
+    type: BlockType.CONDITIONAL_FORMAT,
+    category: BlockCategory.EXCEL,
+    label: '条件格式',
+    description: '添加条件格式规则',
+    icon: 'PriceTag',
+    color: '#f59e0b',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'range', name: 'range', type: 'text', label: '应用范围', defaultValue: 'A1:A10', placeholder: '例如: A1:A10' },
+      { id: 'formatType', name: 'formatType', type: 'select', label: '格式类型', defaultValue: 'xlCellValue', options: [
+        { label: '单元格值', value: 'xlCellValue' },
+        { label: '公式', value: 'xlExpression' }
+      ]},
+      { id: 'operator', name: 'operator', type: 'select', label: '运算符', defaultValue: 'xlGreater', options: [
+        { label: '大于', value: 'xlGreater' },
+        { label: '小于', value: 'xlLess' },
+        { label: '等于', value: 'xlEqual' },
+        { label: '大于等于', value: 'xlGreaterEqual' },
+        { label: '小于等于', value: 'xlLessEqual' },
+        { label: '不等于', value: 'xlNotEqual' },
+        { label: '介于', value: 'xlBetween' },
+        { label: '不介于', value: 'xlNotBetween' }
+      ]},
+      { id: 'value1', name: 'value1', type: 'text', label: '条件值1', defaultValue: '0', placeholder: '比较值或公式' },
+      { id: 'value2', name: 'value2', type: 'text', label: '条件值2', defaultValue: '', placeholder: '介于时使用' },
+      { id: 'interiorColor', name: 'interiorColor', type: 'select', label: '背景色', defaultValue: 'vbYellow', options: [
+        { label: '黄色', value: 'vbYellow' },
+        { label: '红色', value: 'vbRed' },
+        { label: '绿色', value: 'vbGreen' },
+        { label: '蓝色', value: 'vbBlue' },
+        { label: '橙色', value: 'vbMagenta' },
+        { label: '青色', value: 'vbCyan' }
+      ]}
+    ],
+    codeTemplate: `Range("{{range}}").FormatConditions.Add {{formatType}}, {{operator}}, "{{value1}}"{{#if value2}}, "{{value2}}"{{/if}}
+Range("{{range}}").FormatConditions(1).Interior.Color = {{interiorColor}}`
+  },
+
+  {
+    id: 'block-conditional-format-clear',
+    type: BlockType.CONDITIONAL_FORMAT_CLEAR,
+    category: BlockCategory.EXCEL,
+    label: '清除条件格式',
+    description: '清除指定范围的条件格式',
+    icon: 'Delete',
+    color: '#f59e0b',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'range', name: 'range', type: 'text', label: '清除范围', defaultValue: 'A1:A10', placeholder: '例如: A1:A10' }
+    ],
+    codeTemplate: 'Range("{{range}}").FormatConditions.Delete'
+  },
+
+  // ==================== 数据透视表积木 ====================
+  {
+    id: 'block-pivot-create',
+    type: BlockType.PIVOT_CREATE,
+    category: BlockCategory.EXCEL,
+    label: '创建数据透视表',
+    description: '创建新的数据透视表',
+    icon: 'Grid',
+    color: '#8b5cf6',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'varName', name: 'varName', type: 'text', label: '透视表变量', defaultValue: 'pvt', placeholder: '存储透视表的变量名' },
+      { id: 'sourceRange', name: 'sourceRange', type: 'text', label: '数据源范围', defaultValue: 'A1:D100', placeholder: '例如: A1:D100' },
+      { id: 'destRange', name: 'destRange', type: 'text', label: '目标位置', defaultValue: 'F1', placeholder: '透视表放置位置' },
+      { id: 'tableName', name: 'tableName', type: 'text', label: '表名称', defaultValue: 'PivotTable1', placeholder: '透视表名称' }
+    ],
+    codeTemplate: `Dim {{varName}} As PivotTable
+Dim {{varName}}Cache As PivotCache
+Set {{varName}}Cache = ActiveWorkbook.PivotCaches.Create(xlDatabase, Range("{{sourceRange}}"))
+Set {{varName}} = {{varName}}Cache.CreatePivotTable(Range("{{destRange}}"), "{{tableName}}")`
+  },
+
+  {
+    id: 'block-pivot-add-field',
+    type: BlockType.PIVOT_ADD_FIELD,
+    category: BlockCategory.EXCEL,
+    label: '添加透视表字段',
+    description: '向数据透视表添加字段',
+    icon: 'Plus',
+    color: '#8b5cf6',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'pivotName', name: 'pivotName', type: 'expression', label: '透视表变量', defaultValue: 'pvt', placeholder: '透视表对象变量名' },
+      { id: 'fieldName', name: 'fieldName', type: 'text', label: '字段名', defaultValue: '', placeholder: '要添加的字段名' },
+      { id: 'fieldType', name: 'fieldType', type: 'select', label: '字段类型', defaultValue: 'xlRowField', options: [
+        { label: '行字段', value: 'xlRowField' },
+        { label: '列字段', value: 'xlColumnField' },
+        { label: '数据字段', value: 'xlDataField' },
+        { label: '页字段', value: 'xlPageField' }
+      ]},
+      { id: 'position', name: 'position', type: 'number', label: '位置', defaultValue: 1 }
+    ],
+    codeTemplate: `With {{pivotName}}.PivotFields("{{fieldName}}")
+    .Orientation = {{fieldType}}
+    .Position = {{position}}
+End With`
+  },
+
+  {
+    id: 'block-pivot-refresh',
+    type: BlockType.PIVOT_REFRESH,
+    category: BlockCategory.EXCEL,
+    label: '刷新数据透视表',
+    description: '刷新数据透视表数据',
+    icon: 'Refresh',
+    color: '#8b5cf6',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'pivotName', name: 'pivotName', type: 'expression', label: '透视表变量', defaultValue: 'pvt', placeholder: '透视表对象变量名' }
+    ],
+    codeTemplate: '{{pivotName}}.RefreshTable'
+  },
+
+  {
+    id: 'block-pivot-delete',
+    type: BlockType.PIVOT_DELETE,
+    category: BlockCategory.EXCEL,
+    label: '删除数据透视表',
+    description: '删除指定的数据透视表',
+    icon: 'Delete',
+    color: '#8b5cf6',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'pivotName', name: 'pivotName', type: 'expression', label: '透视表变量', defaultValue: 'pvt', placeholder: '透视表对象变量名' }
+    ],
+    codeTemplate: '{{pivotName}}.TableRange2.Clear'
+  },
+
   // ==================== 交互积木 ====================
   {
     id: 'block-msgbox',
@@ -396,18 +623,128 @@ Loop`
   },
 
   // ==================== 高级积木 ====================
+  // Sub 过程结束
   {
-    id: 'block-option-explicit',
+    id: 'block-end-sub',
+    type: BlockType.SUB_DEFINE,
+    category: BlockCategory.ADVANCED,
+    label: 'End Sub',
+    description: 'Sub 过程结束',
+    icon: 'DocumentCopy',
+    color: '#ef4444',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [],
+    properties: [],
+    codeTemplate: 'End Sub'
+  },
+
+  // With 语句块
+  {
+    id: 'block-with-statement',
+    type: BlockType.WITH_STATEMENT,
+    category: BlockCategory.CONTROL_FLOW,
+    label: 'With 语句',
+    description: 'With 语句块，简化对象属性设置',
+    icon: 'Connection',
+    color: '#f59e0b',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'object', name: 'object', type: 'expression', label: '对象', defaultValue: '', placeholder: '例如: Range("A1")' }
+    ],
+    codeTemplate: `With {{object}}
+End With`
+  },
+
+  // With 属性赋值
+  {
+    id: 'block-with-property-assignment',
+    type: BlockType.ASSIGNMENT,
+    category: BlockCategory.CONTROL_FLOW,
+    label: 'With 属性赋值',
+    description: '在 With 块内设置属性',
+    icon: 'EditPen',
+    color: '#f59e0b',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'property', name: 'property', type: 'text', label: '属性名', defaultValue: '', placeholder: '例如: Value, Font.Name' },
+      { id: 'value', name: 'value', type: 'expression', label: '值', defaultValue: '', placeholder: '要设置的值' }
+    ],
+    codeTemplate: '.{{property}} = {{value}}'
+  },
+
+  // ReDim 语句
+  {
+    id: 'block-redim-statement',
+    type: BlockType.ARRAY_DECLARE,
+    category: BlockCategory.ADVANCED,
+    label: 'ReDim 重定义数组',
+    description: '重新定义动态数组的大小',
+    icon: 'Grid',
+    color: '#ef4444',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'preserve', name: 'preserve', type: 'boolean', label: 'Preserve 保留数据', defaultValue: false },
+      { id: 'arrayName', name: 'arrayName', type: 'text', label: '数组名', defaultValue: 'myArray', placeholder: '动态数组名' },
+      { id: 'size', name: 'size', type: 'text', label: '大小', defaultValue: '10', placeholder: '例如: 10 或 10, 20' },
+      { id: 'arrayType', name: 'arrayType', type: 'select', label: '数据类型', defaultValue: 'Variant', options: [
+        { label: 'Variant', value: 'Variant' },
+        { label: 'Integer', value: 'Integer' },
+        { label: 'Long', value: 'Long' },
+        { label: 'Double', value: 'Double' },
+        { label: 'String', value: 'String' }
+      ]}
+    ],
+    codeTemplate: 'ReDim {{#if preserve}}Preserve {{/if}}{{arrayName}}({{size}}) As {{arrayType}}'
+  },
+
+  // Option 语句
+  {
+    id: 'block-option-statement',
     type: BlockType.COMMENT,
     category: BlockCategory.ADVANCED,
-    label: 'Option Explicit',
-    description: '强制变量声明（放在代码最前面）',
+    label: 'Option 语句',
+    description: '模块级选项声明',
     icon: 'Warning',
     color: '#ef4444',
     inputs: [],
     outputs: [{ id: 'out', name: '输出', type: 'flow', required: false, position: 'bottom' }],
-    properties: [],
-    codeTemplate: 'Option Explicit'
+    properties: [
+      { id: 'optionType', name: 'optionType', type: 'select', label: '选项类型', defaultValue: 'Explicit', options: [
+        { label: 'Option Explicit', value: 'Explicit' },
+        { label: 'Option Base 0', value: 'Base 0' },
+        { label: 'Option Base 1', value: 'Base 1' },
+        { label: 'Option Compare Text', value: 'Compare Text' },
+        { label: 'Option Compare Binary', value: 'Compare Binary' }
+      ]}
+    ],
+    codeTemplate: 'Option {{optionType}}'
+  },
+
+  // Application 属性设置
+  {
+    id: 'block-application-property',
+    type: BlockType.ASSIGNMENT,
+    category: BlockCategory.EXCEL,
+    label: 'Application 属性',
+    description: '设置 Application 对象属性',
+    icon: 'Setting',
+    color: '#10b981',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'property', name: 'property', type: 'select', label: '属性', defaultValue: 'ScreenUpdating', options: [
+        { label: 'ScreenUpdating (屏幕刷新)', value: 'ScreenUpdating' },
+        { label: 'DisplayAlerts (警告提示)', value: 'DisplayAlerts' },
+        { label: 'EnableEvents (事件启用)', value: 'EnableEvents' },
+        { label: 'Calculation (计算模式)', value: 'Calculation' },
+        { label: 'Visible (可见性)', value: 'Visible' }
+      ]},
+      { id: 'value', name: 'value', type: 'expression', label: '值', defaultValue: 'True', placeholder: '属性值' }
+    ],
+    codeTemplate: 'Application.{{property}} = {{value}}'
   },
 
   {
@@ -886,12 +1223,444 @@ End Function`
       { id: 'integer', name: 'integer', type: 'boolean', label: '整数', defaultValue: true }
     ],
     codeTemplate: '{{#if useRandomize}}Randomize\n{{/if}}{{#if integer}}{{varName}} = Int(({{max}} - {{min}} + 1) * Rnd + {{min}}){{else}}{{varName}} = ({{max}} - {{min}}) * Rnd + {{min}}{{/if}}'
+  },
+
+  // ==================== 字典操作积木 ====================
+  {
+    id: 'block-dictionary-create',
+    type: BlockType.DICTIONARY_CREATE,
+    category: BlockCategory.ADVANCED,
+    label: '创建字典',
+    description: '创建一个字典对象',
+    icon: 'Collection',
+    color: '#8b5cf6',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'varName', name: 'varName', type: 'text', label: '字典变量名', defaultValue: 'dict', placeholder: '存储字典的变量名' }
+    ],
+    codeTemplate: 'Dim {{varName}} As Object\nSet {{varName}} = CreateObject("Scripting.Dictionary")'
+  },
+
+  {
+    id: 'block-dictionary-add',
+    type: BlockType.DICTIONARY_ADD,
+    category: BlockCategory.ADVANCED,
+    label: '字典添加',
+    description: '向字典添加键值对',
+    icon: 'Plus',
+    color: '#8b5cf6',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'dictName', name: 'dictName', type: 'expression', label: '字典变量', defaultValue: 'dict', placeholder: '字典变量名' },
+      { id: 'key', name: 'key', type: 'expression', label: '键', defaultValue: '', placeholder: '键名' },
+      { id: 'value', name: 'value', type: 'expression', label: '值', defaultValue: '', placeholder: '键值' }
+    ],
+    codeTemplate: '{{dictName}}.Add {{key}}, {{value}}'
+  },
+
+  {
+    id: 'block-dictionary-get',
+    type: BlockType.DICTIONARY_GET,
+    category: BlockCategory.ADVANCED,
+    label: '字典取值',
+    description: '从字典获取值',
+    icon: 'Search',
+    color: '#8b5cf6',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'varName', name: 'varName', type: 'text', label: '结果变量', defaultValue: 'value', placeholder: '存储结果的变量名' },
+      { id: 'dictName', name: 'dictName', type: 'expression', label: '字典变量', defaultValue: 'dict', placeholder: '字典变量名' },
+      { id: 'key', name: 'key', type: 'expression', label: '键', defaultValue: '', placeholder: '键名' }
+    ],
+    codeTemplate: '{{varName}} = {{dictName}}({{key}})'
+  },
+
+  {
+    id: 'block-dictionary-exists',
+    type: BlockType.DICTIONARY_EXISTS,
+    category: BlockCategory.ADVANCED,
+    label: '字典键存在',
+    description: '检查字典中是否存在指定键',
+    icon: 'QuestionFilled',
+    color: '#8b5cf6',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'varName', name: 'varName', type: 'text', label: '结果变量', defaultValue: 'exists', placeholder: '存储结果的变量名' },
+      { id: 'dictName', name: 'dictName', type: 'expression', label: '字典变量', defaultValue: 'dict', placeholder: '字典变量名' },
+      { id: 'key', name: 'key', type: 'expression', label: '键', defaultValue: '', placeholder: '键名' }
+    ],
+    codeTemplate: '{{varName}} = {{dictName}}.Exists({{key}})'
+  },
+
+  {
+    id: 'block-dictionary-remove',
+    type: BlockType.DICTIONARY_REMOVE,
+    category: BlockCategory.ADVANCED,
+    label: '字典删除',
+    description: '从字典删除指定键',
+    icon: 'Delete',
+    color: '#8b5cf6',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'dictName', name: 'dictName', type: 'expression', label: '字典变量', defaultValue: 'dict', placeholder: '字典变量名' },
+      { id: 'key', name: 'key', type: 'expression', label: '键', defaultValue: '', placeholder: '要删除的键名' }
+    ],
+    codeTemplate: '{{dictName}}.Remove {{key}}'
+  },
+
+  {
+    id: 'block-dictionary-loop',
+    type: BlockType.DICTIONARY_LOOP,
+    category: BlockCategory.ADVANCED,
+    label: '遍历字典',
+    description: '遍历字典的所有键',
+    icon: 'Refresh',
+    color: '#8b5cf6',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'dictName', name: 'dictName', type: 'expression', label: '字典变量', defaultValue: 'dict', placeholder: '字典变量名' },
+      { id: 'keyVar', name: 'keyVar', type: 'text', label: '键变量', defaultValue: 'key', placeholder: '存储当前键的变量名' },
+      { id: 'loopBody', name: 'loopBody', type: 'code', label: '循环体代码', defaultValue: '', placeholder: '循环执行的代码' }
+    ],
+    codeTemplate: `Dim {{keyVar}} As Variant
+For Each {{keyVar}} In {{dictName}}.Keys
+{{loopBody}}
+Next {{keyVar}}`
+  },
+
+  // ==================== 正则表达式积木 ====================
+  {
+    id: 'block-regex-create',
+    type: BlockType.REGEX_CREATE,
+    category: BlockCategory.ADVANCED,
+    label: '创建正则',
+    description: '创建正则表达式对象',
+    icon: 'Aim',
+    color: '#06b6d4',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'varName', name: 'varName', type: 'text', label: '正则变量名', defaultValue: 'regex', placeholder: '存储正则对象的变量名' },
+      { id: 'pattern', name: 'pattern', type: 'text', label: '正则模式', defaultValue: '', placeholder: '正则表达式模式' },
+      { id: 'ignoreCase', name: 'ignoreCase', type: 'boolean', label: '忽略大小写', defaultValue: false },
+      { id: 'global', name: 'global', type: 'boolean', label: '全局匹配', defaultValue: true }
+    ],
+    codeTemplate: `Dim {{varName}} As Object
+Set {{varName}} = CreateObject("VBScript.RegExp")
+{{varName}}.Pattern = "{{pattern}}"
+{{varName}}.IgnoreCase = {{ignoreCase}}
+{{varName}}.Global = {{global}}`
+  },
+
+  {
+    id: 'block-regex-test',
+    type: BlockType.REGEX_TEST,
+    category: BlockCategory.ADVANCED,
+    label: '正则测试',
+    description: '测试字符串是否匹配正则',
+    icon: 'Check',
+    color: '#06b6d4',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'varName', name: 'varName', type: 'text', label: '结果变量', defaultValue: 'isMatch', placeholder: '存储结果的变量名' },
+      { id: 'regexName', name: 'regexName', type: 'expression', label: '正则变量', defaultValue: 'regex', placeholder: '正则表达式变量名' },
+      { id: 'text', name: 'text', type: 'expression', label: '测试文本', defaultValue: '', placeholder: '要测试的字符串' }
+    ],
+    codeTemplate: '{{varName}} = {{regexName}}.Test({{text}})'
+  },
+
+  {
+    id: 'block-regex-replace',
+    type: BlockType.REGEX_REPLACE,
+    category: BlockCategory.ADVANCED,
+    label: '正则替换',
+    description: '使用正则表达式替换文本',
+    icon: 'EditPen',
+    color: '#06b6d4',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'varName', name: 'varName', type: 'text', label: '结果变量', defaultValue: 'result', placeholder: '存储结果的变量名' },
+      { id: 'regexName', name: 'regexName', type: 'expression', label: '正则变量', defaultValue: 'regex', placeholder: '正则表达式变量名' },
+      { id: 'text', name: 'text', type: 'expression', label: '源文本', defaultValue: '', placeholder: '要替换的字符串' },
+      { id: 'replacement', name: 'replacement', type: 'text', label: '替换为', defaultValue: '', placeholder: '替换内容' }
+    ],
+    codeTemplate: '{{varName}} = {{regexName}}.Replace({{text}}, "{{replacement}}")'
+  },
+
+  {
+    id: 'block-regex-execute',
+    type: BlockType.REGEX_EXECUTE,
+    category: BlockCategory.ADVANCED,
+    label: '正则执行',
+    description: '执行正则匹配获取匹配集合',
+    icon: 'VideoPlay',
+    color: '#06b6d4',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'varName', name: 'varName', type: 'text', label: '结果变量', defaultValue: 'matches', placeholder: '存储匹配集合的变量名' },
+      { id: 'regexName', name: 'regexName', type: 'expression', label: '正则变量', defaultValue: 'regex', placeholder: '正则表达式变量名' },
+      { id: 'text', name: 'text', type: 'expression', label: '源文本', defaultValue: '', placeholder: '要匹配的字符串' }
+    ],
+    codeTemplate: 'Set {{varName}} = {{regexName}}.Execute({{text}})'
+  },
+
+  // ==================== 自定义代码积木 ====================
+  {
+    id: 'block-custom-code',
+    type: BlockType.COMMENT,
+    category: BlockCategory.ADVANCED,
+    label: '自定义代码',
+    description: '无法识别的 VBA 代码块',
+    icon: 'Document',
+    color: '#64748b',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: false, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: false, position: 'bottom' }],
+    properties: [
+      { id: 'code', name: 'code', type: 'code', label: '代码', defaultValue: '', placeholder: 'VBA 代码' }
+    ],
+    codeTemplate: '{{code}}'
+  },
+
+  // ==================== 事件处理积木 ====================
+  {
+    id: 'block-event-workbook-open',
+    type: BlockType.EVENT_WORKBOOK_OPEN,
+    category: BlockCategory.ADVANCED,
+    label: 'Workbook_Open',
+    description: '工作簿打开事件',
+    icon: 'FolderOpened',
+    color: '#f97316',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'code', name: 'code', type: 'code', label: '事件代码', defaultValue: '', placeholder: '工作簿打开时执行的代码' }
+    ],
+    codeTemplate: `Private Sub Workbook_Open()
+{{code}}
+End Sub`
+  },
+
+  {
+    id: 'block-event-workbook-close',
+    type: BlockType.EVENT_WORKBOOK_CLOSE,
+    category: BlockCategory.ADVANCED,
+    label: 'Workbook_BeforeClose',
+    description: '工作簿关闭前事件',
+    icon: 'FolderRemove',
+    color: '#f97316',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'code', name: 'code', type: 'code', label: '事件代码', defaultValue: '', placeholder: '工作簿关闭前执行的代码' }
+    ],
+    codeTemplate: `Private Sub Workbook_BeforeClose(Cancel As Boolean)
+{{code}}
+End Sub`
+  },
+
+  {
+    id: 'block-event-workbook-save',
+    type: BlockType.EVENT_WORKBOOK_SAVE,
+    category: BlockCategory.ADVANCED,
+    label: 'Workbook_BeforeSave',
+    description: '工作簿保存前事件',
+    icon: 'DocumentChecked',
+    color: '#f97316',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'code', name: 'code', type: 'code', label: '事件代码', defaultValue: '', placeholder: '工作簿保存前执行的代码' }
+    ],
+    codeTemplate: `Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
+{{code}}
+End Sub`
+  },
+
+  {
+    id: 'block-event-sheet-change',
+    type: BlockType.EVENT_SHEET_CHANGE,
+    category: BlockCategory.ADVANCED,
+    label: 'Workbook_SheetChange',
+    description: '工作表变化事件',
+    icon: 'Edit',
+    color: '#f97316',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'code', name: 'code', type: 'code', label: '事件代码', defaultValue: '', placeholder: '工作表变化时执行的代码' }
+    ],
+    codeTemplate: `Private Sub Workbook_SheetChange(ByVal Sh As Object, ByVal Target As Range)
+{{code}}
+End Sub`
+  },
+
+  {
+    id: 'block-event-sheet-activate',
+    type: BlockType.EVENT_SHEET_ACTIVATE,
+    category: BlockCategory.ADVANCED,
+    label: 'Workbook_SheetActivate',
+    description: '工作表激活事件',
+    icon: 'Monitor',
+    color: '#f97316',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'code', name: 'code', type: 'code', label: '事件代码', defaultValue: '', placeholder: '工作表激活时执行的代码' }
+    ],
+    codeTemplate: `Private Sub Workbook_SheetActivate(ByVal Sh As Object)
+{{code}}
+End Sub`
+  },
+
+  {
+    id: 'block-event-worksheet-change',
+    type: BlockType.EVENT_WORKSHEET_CHANGE,
+    category: BlockCategory.ADVANCED,
+    label: 'Worksheet_Change',
+    description: '单元格变化事件（工作表级）',
+    icon: 'Grid',
+    color: '#f97316',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'code', name: 'code', type: 'code', label: '事件代码', defaultValue: '', placeholder: '单元格变化时执行的代码' }
+    ],
+    codeTemplate: `Private Sub Worksheet_Change(ByVal Target As Range)
+{{code}}
+End Sub`
+  },
+
+  {
+    id: 'block-event-selection-change',
+    type: BlockType.EVENT_SELECTION_CHANGE,
+    category: BlockCategory.ADVANCED,
+    label: 'Worksheet_SelectionChange',
+    description: '选择变化事件',
+    icon: 'Pointer',
+    color: '#f97316',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'code', name: 'code', type: 'code', label: '事件代码', defaultValue: '', placeholder: '选择变化时执行的代码' }
+    ],
+    codeTemplate: `Private Sub Worksheet_SelectionChange(ByVal Target As Range)
+{{code}}
+End Sub`
+  },
+
+  {
+    id: 'block-event-button-click',
+    type: BlockType.EVENT_BUTTON_CLICK,
+    category: BlockCategory.ADVANCED,
+    label: 'Button_Click',
+    description: '按钮点击事件',
+    icon: 'Mouse',
+    color: '#f97316',
+    inputs: [],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'buttonName', name: 'buttonName', type: 'text', label: '按钮名称', defaultValue: 'CommandButton1', placeholder: '按钮控件名称' },
+      { id: 'code', name: 'code', type: 'code', label: '事件代码', defaultValue: '', placeholder: '按钮点击时执行的代码' }
+    ],
+    codeTemplate: `Private Sub {{buttonName}}_Click()
+{{code}}
+End Sub`
+  },
+
+  // ==================== Windows API 积木 ====================
+  {
+    id: 'block-winapi-declare',
+    type: BlockType.WINAPI_DECLARE,
+    category: BlockCategory.ADVANCED,
+    label: 'Declare API',
+    description: '声明 Windows API 函数',
+    icon: 'Connection',
+    color: '#dc2626',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: false, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: false, position: 'bottom' }],
+    properties: [
+      { id: 'funcName', name: 'funcName', type: 'text', label: 'VBA函数名', defaultValue: 'Sleep', placeholder: 'VBA 中使用的函数名' },
+      { id: 'libName', name: 'libName', type: 'text', label: 'DLL库名', defaultValue: 'kernel32', placeholder: '例如: kernel32, user32' },
+      { id: 'apiName', name: 'apiName', type: 'text', label: 'API函数名', defaultValue: 'Sleep', placeholder: 'DLL 中的函数名' },
+      { id: 'params', name: 'params', type: 'text', label: '参数列表', defaultValue: 'ByVal dwMilliseconds As Long', placeholder: '例如: ByVal hWnd As Long' },
+      { id: 'returnType', name: 'returnType', type: 'text', label: '返回类型', defaultValue: '', placeholder: '留空表示 Sub' },
+      { id: 'isUnicode', name: 'isUnicode', type: 'boolean', label: 'Unicode版本', defaultValue: false }
+    ],
+    codeTemplate: `{{#if returnType}}Private Declare PtrSafe Function {{funcName}} Lib "{{libName}}" ({{params}}) As {{returnType}}{{else}}Private Declare PtrSafe Sub {{funcName}} Lib "{{libName}}" ({{params}}){{/if}}`
+  },
+
+  {
+    id: 'block-winapi-call',
+    type: BlockType.WINAPI_CALL,
+    category: BlockCategory.ADVANCED,
+    label: 'Call API',
+    description: '调用 Windows API 函数',
+    icon: 'CaretRight',
+    color: '#dc2626',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: true, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: true, position: 'bottom' }],
+    properties: [
+      { id: 'resultVar', name: 'resultVar', type: 'text', label: '结果变量', defaultValue: '', placeholder: '存储返回值的变量（可选）' },
+      { id: 'funcName', name: 'funcName', type: 'text', label: '函数名', defaultValue: 'Sleep', placeholder: '已声明的 API 函数名' },
+      { id: 'args', name: 'args', type: 'text', label: '参数', defaultValue: '1000', placeholder: '函数参数，逗号分隔' }
+    ],
+    codeTemplate: `{{#if resultVar}}{{resultVar}} = {{funcName}}({{args}}){{else}}{{funcName}} {{args}}{{/if}}`
+  },
+
+  {
+    id: 'block-winapi-const',
+    type: BlockType.WINAPI_CONST,
+    category: BlockCategory.ADVANCED,
+    label: 'API 常量',
+    description: '定义 Windows API 常量',
+    icon: 'PriceTag',
+    color: '#dc2626',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: false, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: false, position: 'bottom' }],
+    properties: [
+      { id: 'constName', name: 'constName', type: 'text', label: '常量名', defaultValue: 'MB_OK', placeholder: '常量名称' },
+      { id: 'constValue', name: 'constValue', type: 'text', label: '常量值', defaultValue: '&H0', placeholder: '例如: &H0, 0, &HFFFF' }
+    ],
+    codeTemplate: 'Private Const {{constName}} = {{constValue}}'
+  },
+
+  {
+    id: 'block-winapi-type',
+    type: BlockType.WINAPI_TYPE,
+    category: BlockCategory.ADVANCED,
+    label: 'API 结构体',
+    description: '定义 Windows API 结构体',
+    icon: 'DataBoard',
+    color: '#dc2626',
+    inputs: [{ id: 'in', name: '输入', type: 'flow', required: false, position: 'top' }],
+    outputs: [{ id: 'out', name: '输出', type: 'flow', required: false, position: 'bottom' }],
+    properties: [
+      { id: 'typeName', name: 'typeName', type: 'text', label: '结构体名', defaultValue: 'RECT', placeholder: '结构体名称' },
+      { id: 'members', name: 'members', type: 'code', label: '成员定义', defaultValue: '    Left As Long\n    Top As Long\n    Right As Long\n    Bottom As Long', placeholder: '每行一个成员定义' }
+    ],
+    codeTemplate: `Private Type {{typeName}}
+{{members}}
+End Type`
   }
 ]
 
 // 按分类获取积木
 export const getBlocksByCategory = (category: BlockCategory) => {
   return blockDefinitions.filter(b => b.category === category)
+}
+
+// 获取所有积木
+export const getAllBlocks = () => {
+  return blockDefinitions
 }
 
 // 根据 ID 获取积木定义

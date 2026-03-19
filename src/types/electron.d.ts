@@ -32,4 +32,39 @@ declare namespace Electron {
     canceled: boolean
     filePaths: string[]
   }
+
+  interface FsResult {
+    success: boolean
+    content?: string
+    error?: string
+  }
+}
+
+interface ElectronAPI {
+  window: {
+    minimize: () => Promise<void>
+    maximize: () => Promise<void>
+    close: () => Promise<void>
+    isMaximized: () => Promise<boolean>
+  }
+  clipboard: {
+    write: (text: string) => Promise<boolean>
+    read: () => Promise<string>
+  }
+  dialog: {
+    save: (options: Electron.SaveDialogOptions) => Promise<Electron.SaveDialogReturnValue>
+    open: (options: Electron.OpenDialogOptions) => Promise<Electron.OpenDialogReturnValue>
+  }
+  fs: {
+    readFile: (filePath: string) => Promise<Electron.FsResult>
+    writeFile: (filePath: string, content: string) => Promise<Electron.FsResult>
+    saveImage: (filePath: string, dataUrl: string) => Promise<Electron.FsResult>
+    saveSVG: (filePath: string, content: string) => Promise<Electron.FsResult>
+  }
+}
+
+declare global {
+  interface Window {
+    electronAPI?: ElectronAPI
+  }
 }

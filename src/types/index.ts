@@ -16,6 +16,7 @@ export enum BlockType {
   DO_UNTIL_LOOP = 'do_until_loop',
   EXIT_FOR = 'exit_for',
   EXIT_DO = 'exit_do',
+  WITH_STATEMENT = 'with_statement',
 
   // Excel 操作
   CELL_READ = 'cell_read',
@@ -27,6 +28,19 @@ export enum BlockType {
   WORKBOOK_SAVE = 'workbook_save',
   FORMULA_SET = 'formula_set',
   FORMAT_SET = 'format_set',
+  // 图表操作
+  CHART_CREATE = 'chart_create',
+  CHART_SET_SOURCE = 'chart_set_source',
+  CHART_SET_TITLE = 'chart_set_title',
+  CHART_DELETE = 'chart_delete',
+  // 条件格式
+  CONDITIONAL_FORMAT = 'conditional_format',
+  CONDITIONAL_FORMAT_CLEAR = 'conditional_format_clear',
+  // 数据透视表
+  PIVOT_CREATE = 'pivot_create',
+  PIVOT_ADD_FIELD = 'pivot_add_field',
+  PIVOT_REFRESH = 'pivot_refresh',
+  PIVOT_DELETE = 'pivot_delete',
 
   // 数据处理
   STRING_CONCAT = 'string_concat',
@@ -52,6 +66,31 @@ export enum BlockType {
   ERROR_HANDLER = 'error_handler',
   ARRAY_DECLARE = 'array_declare',
   DICTIONARY_CREATE = 'dictionary_create',
+  DICTIONARY_ADD = 'dictionary_add',
+  DICTIONARY_GET = 'dictionary_get',
+  DICTIONARY_EXISTS = 'dictionary_exists',
+  DICTIONARY_REMOVE = 'dictionary_remove',
+  DICTIONARY_LOOP = 'dictionary_loop',
+  REGEX_CREATE = 'regex_create',
+  REGEX_TEST = 'regex_test',
+  REGEX_REPLACE = 'regex_replace',
+  REGEX_EXECUTE = 'regex_execute',
+
+  // 事件处理
+  EVENT_WORKBOOK_OPEN = 'event_workbook_open',
+  EVENT_WORKBOOK_CLOSE = 'event_workbook_close',
+  EVENT_WORKBOOK_SAVE = 'event_workbook_save',
+  EVENT_SHEET_CHANGE = 'event_sheet_change',
+  EVENT_SHEET_ACTIVATE = 'event_sheet_activate',
+  EVENT_BUTTON_CLICK = 'event_button_click',
+  EVENT_WORKSHEET_CHANGE = 'event_worksheet_change',
+  EVENT_SELECTION_CHANGE = 'event_selection_change',
+
+  // Windows API
+  WINAPI_DECLARE = 'winapi_declare',
+  WINAPI_CALL = 'winapi_call',
+  WINAPI_CONST = 'winapi_const',
+  WINAPI_TYPE = 'winapi_type',
 }
 
 // 积木分类枚举
@@ -183,6 +222,8 @@ export interface ElectronAPI {
   fs: {
     readFile: (filePath: string) => Promise<{ success: boolean; content?: string; error?: string }>
     writeFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>
+    saveImage: (filePath: string, dataUrl: string) => Promise<{ success: boolean; error?: string }>
+    saveSVG: (filePath: string, content: string) => Promise<{ success: boolean; error?: string }>
   }
 }
 

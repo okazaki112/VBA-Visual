@@ -1,4 +1,5 @@
-@use './variables.scss' as *;
+// 导入变量文件（使用 @import 确保 CSS 规则被输出）
+@import './variables.scss';
 
 // 重置样式
 *,

@@ -1,7 +1,7 @@
 <template>
   <div class="title-bar">
     <div class="title-bar-drag">
-      <div class="app-logo">
+      <div class="app-logo" @click="goHome" title="返回首页">
         <svg viewBox="0 0 24 24" class="logo-icon" fill="currentColor">
           <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
         </svg>
@@ -29,6 +29,64 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter, useRoute } from 'vue-router'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import { useBlockStore } from '@/stores/blockStore'
+
+const router = useRouter()
+const route = useRoute()
+const blockStore = useBlockStore()
+
+const goHome = async () => {
+  // 检查是否有未保存的内容（在编辑器页面且有积木）
+  if (route.path === '/editor' && blockStore.blocks.length > 0) {
+    try {
+      await ElMessageBox.confirm(
+        '返回首页将丢失未保存的项目，是否继续？',
+        '提示',
+        {
+          confirmButtonText: '保存并返回',
+          cancelButtonText: '直接返回',
+          distinguishCancelAndClose: true,
+          type: 'warning'
+        }
+      )
+      // 用户点击"保存并返回" - 直接调用保存逻辑
+      const result = await window.electronAPI?.dialog.save({
+        filters: [{ name: 'VBA 项目', extensions: ['vba.json'] }],
+        defaultPath: 'project.vba.json'
+      })
+      
+      if (result && !result.canceled && result.filePath) {
+        const projectData = {
+          version: '1.0.0',
+          blocks: blockStore.blocks,
+          connections: blockStore.connections
+        }
+        const writeResult = await window.electronAPI?.fs.writeFile(
+          result.filePath, 
+          JSON.stringify(projectData, null, 2)
+        )
+        if (writeResult?.success) {
+          ElMessage.success('项目已保存')
+          router.push('/')
+        } else {
+          ElMessage.error(`保存失败: ${writeResult?.error}`)
+        }
+      }
+      // 用户取消保存对话框，留在当前页面
+    } catch (action: unknown) {
+      if (action === 'cancel') {
+        // 用户点击"直接返回"
+        router.push('/')
+      }
+      // 用户点击关闭按钮，不做任何操作
+    }
+  } else {
+    router.push('/')
+  }
+}
+
 const minimize = async () => {
   await window.electronAPI?.window.minimize()
 }
@@ -66,6 +124,13 @@ const close = async () => {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition: opacity var(--transition-fast);
+
+  &:hover {
+    opacity: 0.8;
+  }
 }
 
 .logo-icon {

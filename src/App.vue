@@ -1,5 +1,5 @@
 <template>
-  <div class="app-container" :data-theme="theme">
+  <div class="app-container">
     <TitleBar />
     <div class="app-content">
       <router-view v-slot="{ Component }">
@@ -12,18 +12,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, provide } from 'vue'
 import TitleBar from '@/components/layout/TitleBar.vue'
+import { useThemeStore } from '@/stores/themeStore'
 
-const theme = ref<'dark' | 'light'>('dark')
-
-// 提供主题切换方法
-const toggleTheme = () => {
-  theme.value = theme.value === 'dark' ? 'light' : 'dark'
-}
-
-provide('theme', theme)
-provide('toggleTheme', toggleTheme)
+// 使用主题 store（初始化主题）
+void useThemeStore()
 </script>
 
 <style lang="scss" scoped>

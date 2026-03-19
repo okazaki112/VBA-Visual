@@ -30,6 +30,10 @@ const electronAPI = {
     readFile: (filePath) => ipcRenderer.invoke('fs:readFile', filePath),
     writeFile: (filePath, content) => 
       ipcRenderer.invoke('fs:writeFile', filePath, content),
+    saveImage: (filePath, dataUrl) => 
+      ipcRenderer.invoke('fs:saveImage', filePath, dataUrl),
+    saveSVG: (filePath, content) => 
+      ipcRenderer.invoke('fs:saveSVG', filePath, content),
   },
 }
 

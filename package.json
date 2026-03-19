@@ -21,6 +21,7 @@
   "build": {
     "appId": "com.vba-visual.app",
     "productName": "VBA 可视化编辑器",
+    "asar": true,
     "directories": {
       "output": "release"
     },
@@ -35,16 +36,11 @@
       }
     ],
     "win": {
-      "target": "nsis",
+      "target": [
+        "portable"
+      ],
       "icon": "public/icon.ico",
       "compression": "maximum"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "deleteAppDataOnUninstall": true
     }
   },
   "pnpm": {
@@ -55,8 +51,11 @@
   },
   "electron_mirror": "https://npmmirror.com/mirrors/electron/",
   "dependencies": {
+    "@antv/graphlib": "^2.0.4",
+    "@antv/layout": "1.2.14-beta.8",
     "@antv/x6": "^2.19.2",
     "@antv/x6-plugin-clipboard": "^2.1.6",
+    "@antv/x6-plugin-export": "^2.1.6",
     "@antv/x6-plugin-history": "^2.2.4",
     "@antv/x6-plugin-keyboard": "^2.2.3",
     "@antv/x6-plugin-selection": "^2.2.2",

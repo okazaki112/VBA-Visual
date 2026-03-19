@@ -1,0 +1,103 @@
+序号,ID,标签,当前分类,新分类,新顺序
+1,block-variable-declare,变量声明,BASIC,基础,1
+2,block-constant-declare,常量声明,BASIC,基础,2
+3,block-assignment,赋值语句,BASIC,基础,3
+4,block-comment,注释,BASIC,基础,4
+5,block-debug-print,Debug.Print,BASIC,基础,5
+48,block-array-declare,数组声明,ADVANCED,基础,6
+39,block-redim-statement,ReDim 重定义数组,ADVANCED,基础,7
+30,block-option-explicit,Option Explicit,ADVANCED,基础,8
+40,block-option-statement,Option 语句,ADVANCED,基础,9
+,,,,,
+6,block-if-statement,If 条件,CONTROL_FLOW,流程控制,1
+7,block-if-else-statement,If-Else 条件,CONTROL_FLOW,流程控制,2
+34,block-if,If,CONTROL_FLOW,流程控制,3
+35,block-else,Else,CONTROL_FLOW,流程控制,4
+36,block-elseif-statement,ElseIf 条件,CONTROL_FLOW,流程控制,5
+42,block-end-if,End If,CONTROL_FLOW,流程控制,6
+8,block-for-loop,For 循环,CONTROL_FLOW,流程控制,7
+9,block-for-each-loop,For Each 循环,CONTROL_FLOW,流程控制,8
+32,block-foreach,For Each,CONTROL_FLOW,流程控制,9
+33,block-next,Next,CONTROL_FLOW,流程控制,10
+10,block-do-while-loop,Do While 循环,CONTROL_FLOW,流程控制,11
+47,block-error-handler,错误处理,ADVANCED,流程控制,12
+,,,,,
+11,block-cell-read,读取单元格,EXCEL,Excel单元格,1
+12,block-cell-write,写入单元格,EXCEL,Excel单元格,2
+43,block-range-set,设置单元格,EXCEL,Excel单元格,3
+44,block-range-get,获取单元格,EXCEL,Excel单元格,4
+13,block-range-select,选择区域,EXCEL,Excel单元格,5
+14,block-sheet-activate,激活工作表,EXCEL,Excel单元格,6
+15,block-formula-set,设置公式,EXCEL,Excel单元格,7
+,,,,,
+16,block-chart-create,创建图表,EXCEL,Excel图表,1
+17,block-chart-set-source,设置图表数据源,EXCEL,Excel图表,2
+18,block-chart-set-title,设置图表标题,EXCEL,Excel图表,3
+19,block-chart-delete,删除图表,EXCEL,Excel图表,4
+,,,,,
+20,block-conditional-format,条件格式,EXCEL,Excel高级,1
+21,block-conditional-format-clear,清除条件格式,EXCEL,Excel高级,2
+22,block-pivot-create,创建数据透视表,EXCEL,Excel高级,3
+23,block-pivot-add-field,添加透视表字段,EXCEL,Excel高级,4
+24,block-pivot-refresh,刷新数据透视表,EXCEL,Excel高级,5
+25,block-pivot-delete,删除数据透视表,EXCEL,Excel高级,6
+,,,,,
+49,block-string-concat,字符串拼接,DATA,字符串处理,1
+50,block-string-substring,字符串截取,DATA,字符串处理,2
+51,block-string-len,字符串长度,DATA,字符串处理,3
+52,block-string-replace,字符串替换,DATA,字符串处理,4
+53,block-string-trim,去除空格,DATA,字符串处理,5
+54,block-string-instr,查找字符串,DATA,字符串处理,6
+,,,,,
+55,block-date-now,当前日期时间,DATA,日期时间,1
+56,block-date-add,日期加减,DATA,日期时间,2
+57,block-date-diff,日期差值,DATA,日期时间,3
+58,block-date-part,日期部分,DATA,日期时间,4
+59,block-date-format,日期格式化,DATA,日期时间,5
+,,,,,
+60,block-math-operation,数学运算,DATA,数学运算,1
+61,block-math-function,数学函数,DATA,数学运算,2
+62,block-math-round,Round 四舍五入,DATA,数学运算,3
+63,block-type-convert,类型转换,DATA,数学运算,4
+64,block-random,随机数,DATA,数学运算,5
+,,,,,
+26,block-msgbox,消息框,INTERACTION,交互,1
+27,block-inputbox,输入框,INTERACTION,交互,2
+28,block-file-open-dialog,打开文件对话框,FILE,交互,3
+29,block-file-save-dialog,保存文件对话框,FILE,交互,4
+,,,,,
+45,block-sub-define,Sub 过程,ADVANCED,过程函数,1
+46,block-function-define,Function 函数,ADVANCED,过程函数,2
+31,block-end-sub,End Sub,ADVANCED,过程函数,3
+,,,,,
+37,block-with-statement,With 语句,ADVANCED,高级语法,1
+38,block-with-property-assignment,With 属性赋值,ADVANCED,高级语法,2
+41,block-application-property,Application 属性,ADVANCED,高级语法,3
+,,,,,
+65,block-dictionary-create,创建字典,ADVANCED,字典,1
+66,block-dictionary-add,字典添加,ADVANCED,字典,2
+67,block-dictionary-get,字典取值,ADVANCED,字典,3
+68,block-dictionary-exists,字典键存在,ADVANCED,字典,4
+69,block-dictionary-remove,字典删除,ADVANCED,字典,5
+70,block-dictionary-loop,遍历字典,ADVANCED,字典,6
+,,,,,
+71,block-regex-create,创建正则,ADVANCED,正则表达式,1
+72,block-regex-test,正则测试,ADVANCED,正则表达式,2
+73,block-regex-replace,正则替换,ADVANCED,正则表达式,3
+74,block-regex-execute,正则执行,ADVANCED,正则表达式,4
+,,,,,
+76,block-event-workbook-open,Workbook_Open,ADVANCED,事件,1
+77,block-event-workbook-close,Workbook_BeforeClose,ADVANCED,事件,2
+78,block-event-workbook-save,Workbook_BeforeSave,ADVANCED,事件,3
+79,block-event-sheet-change,Workbook_SheetChange,ADVANCED,事件,4
+80,block-event-sheet-activate,Workbook_SheetActivate,ADVANCED,事件,5
+81,block-event-worksheet-change,Worksheet_Change,ADVANCED,事件,6
+82,block-event-selection-change,Worksheet_SelectionChange,ADVANCED,事件,7
+83,block-event-button-click,Button_Click,ADVANCED,事件,8
+,,,,,
+84,block-winapi-declare,Declare API,ADVANCED,Windows API,1
+85,block-winapi-call,Call API,ADVANCED,Windows API,2
+86,block-winapi-const,API 常量,ADVANCED,Windows API,3
+87,block-winapi-type,API 结构体,ADVANCED,Windows API,4
+,,,,,
+75,block-custom-code,自定义代码,ADVANCED,其他,1

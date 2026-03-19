@@ -9,17 +9,44 @@ import { getBlockDefinition } from './blockDefinitions'
 
 // 特殊积木 ID 常量
 const SPECIAL_BLOCKS = {
-  OPTION_EXPLICIT: 'block-option-explicit',
+  OPTION_STATEMENT: 'block-option-statement',
   SUB_DEFINE: 'block-sub-define',
   FUNCTION_DEFINE: 'block-function-define'
+}
+
+// 代码映射接口
+export interface CodeMapping {
+  lineStart: number  // 起始行号（1-based）
+  lineEnd: number    // 结束行号（1-based）
+  blockId: string    // 积木ID
+  blockLabel: string // 积木名称
+}
+
+// 代码生成结果接口
+export interface GenerateResult {
+  code: string
+  mappings: CodeMapping[]
 }
 
 export const generateCode = (
   blocks: BlockInstance[],
   connections: Connection[]
 ): string => {
+  const result = generateCodeWithMappings(blocks, connections)
+  return result.code
+}
+
+/**
+ * 生成代码并返回映射关系
+ */
+export const generateCodeWithMappings = (
+  blocks: BlockInstance[],
+  connections: Connection[]
+): GenerateResult => {
+  const mappings: CodeMapping[] = []
+  
   if (blocks.length === 0) {
-    return getDefaultCode()
+    return { code: getDefaultCode(), mappings }
   }
 
   // 构建连接映射
@@ -30,56 +57,152 @@ export const generateCode = (
   const hasConnections = connections.length > 0
 
   // 分离特殊积木和普通积木
-  const optionExplicitBlocks = blocks.filter(b => b.definitionId === SPECIAL_BLOCKS.OPTION_EXPLICIT)
+  const optionBlocks = blocks.filter(b => b.definitionId === SPECIAL_BLOCKS.OPTION_STATEMENT)
   const subDefineBlocks = blocks.filter(b => b.definitionId === SPECIAL_BLOCKS.SUB_DEFINE)
   const functionDefineBlocks = blocks.filter(b => b.definitionId === SPECIAL_BLOCKS.FUNCTION_DEFINE)
   const hasUserDefinedSubOrFunction = subDefineBlocks.length > 0 || functionDefineBlocks.length > 0
   
   // 普通积木（排除特殊积木）
   const normalBlocks = blocks.filter(b => 
-    b.definitionId !== SPECIAL_BLOCKS.OPTION_EXPLICIT &&
+    b.definitionId !== SPECIAL_BLOCKS.OPTION_STATEMENT &&
     b.definitionId !== SPECIAL_BLOCKS.SUB_DEFINE &&
     b.definitionId !== SPECIAL_BLOCKS.FUNCTION_DEFINE
   )
 
+  // 辅助函数：记录映射
+  const recordMapping = (blockId: string, startLine: number, endLine: number) => {
+    const block = blocks.find(b => b.id === blockId)
+    const def = block ? getBlockDefinition(block.definitionId) : null
+    if (def && endLine >= startLine) {
+      mappings.push({
+        lineStart: startLine,
+        lineEnd: endLine,
+        blockId,
+        blockLabel: def.label
+      })
+    }
+  }
+
   // 生成代码
   const codeLines: string[] = []
+  let currentLine = 1
 
-  // 1. 首先输出 Option Explicit（必须在最顶部）
-  optionExplicitBlocks.forEach(block => {
+  // 1. 首先输出 Option 语句（必须在最顶部）
+  optionBlocks.forEach(block => {
+    const startLine = currentLine
     const code = generateBlockCodeRecursive(block, blocks, connectionMap, 0)
     if (code) {
-      codeLines.push(code.trim())
+      const lines = code.trim().split('\n')
+      lines.forEach(line => codeLines.push(line))
+      currentLine += lines.length
+      recordMapping(block.id, startLine, currentLine - 1)
     }
   })
 
-  // 如果有 Option Explicit，添加空行
-  if (optionExplicitBlocks.length > 0) {
+  // 如果有 Option 语句，添加空行
+  if (optionBlocks.length > 0) {
     codeLines.push("")
+    currentLine++
   }
 
   // 2. 输出用户定义的 Sub/Function
   if (hasUserDefinedSubOrFunction) {
-    // 处理 Sub 定义积木
-    subDefineBlocks.forEach(block => {
-      const code = generateBlockCodeRecursive(block, blocks, connectionMap, 0)
-      if (code) {
-        codeLines.push(code)
+    // 获取普通积木的有序列表
+    let orderedNormalBlocks: BlockInstance[] = []
+    if (normalBlocks.length > 0) {
+      if (hasConnections) {
+        const entryNodes = normalBlocks.filter(b => !targetIds.has(b.id))
+        orderedNormalBlocks = getOrderedBlocksByConnections(entryNodes, normalBlocks, connectionMap)
+      } else {
+        orderedNormalBlocks = [...normalBlocks].sort((a, b) => {
+          if (a.order !== undefined && b.order !== undefined) {
+            return a.order - b.order
+          }
+          return a.position.y - b.position.y
+        })
       }
+    }
+
+    // 合并 Sub 和 Function 并按位置排序
+    const allSubFunctions = [...subDefineBlocks, ...functionDefineBlocks].sort((a, b) => {
+      return a.position.y - b.position.y
     })
-    
-    // 处理 Function 定义积木
-    functionDefineBlocks.forEach(block => {
-      const code = generateBlockCodeRecursive(block, blocks, connectionMap, 0)
-      if (code) {
-        codeLines.push(code)
+
+    // 处理每个 Sub/Function
+    allSubFunctions.forEach((block, index) => {
+      const definition = getBlockDefinition(block.definitionId)
+      if (!definition) return
+
+      const subStartLine = currentLine
+      const isSub = block.definitionId === SPECIAL_BLOCKS.SUB_DEFINE
+      const name = isSub 
+        ? (block.properties.subName || 'MyMacro')
+        : (block.properties.funcName || 'MyFunction')
+      const params = block.properties.parameters || ''
+      const returnType = isSub ? '' : ` As ${block.properties.returnType || 'Variant'}`
+      const customBodyCode = block.properties.bodyCode
+
+      // 生成头部
+      if (isSub) {
+        codeLines.push(`Sub ${name}(${params})`)
+      } else {
+        codeLines.push(`Function ${name}(${params})${returnType}`)
       }
+      currentLine++
+
+      // 如果有自定义代码，使用自定义代码
+      if (customBodyCode && typeof customBodyCode === 'string' && customBodyCode.trim()) {
+        const customLines = customBodyCode.split('\n')
+          .map((line: string) => '    ' + line.trim())
+          .filter((line: string) => line.trim())
+        customLines.forEach((line: string) => {
+          codeLines.push(line)
+          currentLine++
+        })
+      } else if (index === 0 && orderedNormalBlocks.length > 0) {
+        // 第一个 Sub/Function 包含普通积木
+        codeLines.push("    ' 让VBA 代码像搭积木一样简单")
+        codeLines.push("    ")
+        currentLine += 2
+        
+        orderedNormalBlocks.forEach(normalBlock => {
+          const blockStartLine = currentLine
+          const code = generateBlockCodeRecursive(normalBlock, blocks, connectionMap, 1)
+          if (code) {
+            const lines = code.split('\n')
+            lines.forEach(line => {
+              codeLines.push(line)
+              currentLine++
+            })
+            recordMapping(normalBlock.id, blockStartLine, currentLine - 1)
+          }
+        })
+      } else {
+        // 其他 Sub/Function 添加占位注释
+        codeLines.push("    ' TODO: 添加代码")
+        currentLine++
+      }
+
+      // 生成尾部
+      if (isSub) {
+        codeLines.push("End Sub")
+      } else {
+        codeLines.push("End Function")
+      }
+      currentLine++
+      
+      recordMapping(block.id, subStartLine, currentLine - 1)
+
+      // 添加空行分隔
+      codeLines.push("")
+      currentLine++
     })
   } else {
     // 3. 如果没有用户定义的 Sub/Function，自动生成包装的 Sub
     codeLines.push("Sub GeneratedMacro()")
     codeLines.push("    ' 让VBA 代码像搭积木一样简单")
     codeLines.push("    ")
+    currentLine += 3
 
     // 确定生成顺序
     let orderedBlocks: BlockInstance[]
@@ -99,6 +222,7 @@ export const generateCode = (
           codeLines.push(`    '   - ${def?.label || b.id}`)
         })
         codeLines.push("    ")
+        currentLine += orphanBlocks.length + 2
       }
     } else {
       // 无连线：按 order 字段排序
@@ -114,16 +238,23 @@ export const generateCode = (
 
     // 生成代码
     orderedBlocks.forEach(block => {
+      const blockStartLine = currentLine
       const code = generateBlockCodeRecursive(block, blocks, connectionMap, 1)
       if (code) {
-        codeLines.push(code)
+        const lines = code.split('\n')
+        lines.forEach(line => {
+          codeLines.push(line)
+          currentLine++
+        })
+        recordMapping(block.id, blockStartLine, currentLine - 1)
       }
     })
 
     codeLines.push("End Sub")
+    currentLine++
   }
 
-  return codeLines.join("\n")
+  return { code: codeLines.join("\n"), mappings }
 }
 
 /**
@@ -358,41 +489,42 @@ const generateBlockCodeRecursive = (
 
 /**
  * 处理条件占位符
- * 支持: {{#if prop}}, {{#if (eq prop "value")}}, {{#if (neq prop value)}}
+ * 支持: {{#if prop}}, {{#if prop}}...{{else}}...{{/if}}
+ * 支持: {{#if (eq prop "value")}}, {{#if (neq prop value)}}
  */
 const processConditionals = (
   template: string,
   properties: Record<string, unknown>
 ): string => {
-  // 处理 neq 条件 (不等于): {{#if (neq prop value)}}...{{/if}}
-  const neqRegex = /\{\{#if\s+\(neq\s+(\w+)\s+(\w+)\)\}\}(.*?)\{\{\/if\}\}/gs
-  template = template.replace(neqRegex, (_, propName, compareValue, content) => {
+  // 处理 neq 条件 (不等于): {{#if (neq prop value)}}...{{else}}...{{/if}} 或 {{#if (neq prop value)}}...{{/if}}
+  const neqRegex = /\{\{#if\s+\(neq\s+(\w+)\s+(\w+)\)\}\}(.*?)(?:\{\{else\}\}(.*?))?\{\{\/if\}\}/gs
+  template = template.replace(neqRegex, (_, propName, compareValue, trueContent, falseContent = '') => {
     const value = properties[propName]
     const compare = properties[compareValue] ?? compareValue
     // 数值比较
     if (typeof value === 'number' && !isNaN(Number(compare))) {
-      return value !== Number(compare) ? content : ''
+      return value !== Number(compare) ? trueContent : falseContent
     }
-    return String(value) !== String(compare) ? content : ''
+    return String(value) !== String(compare) ? trueContent : falseContent
   })
 
-  // 处理 eq 条件: {{#if (eq prop "value")}}...{{/if}}
-  const eqRegex = /\{\{#if\s+\(eq\s+(\w+)\s+"([^"]+)"\)\}\}(.*?)\{\{\/if\}\}/gs
-  template = template.replace(eqRegex, (_, propName, compareValue, content) => {
+  // 处理 eq 条件: {{#if (eq prop "value")}}...{{else}}...{{/if}} 或 {{#if (eq prop "value")}}...{{/if}}
+  const eqRegex = /\{\{#if\s+\(eq\s+(\w+)\s+"([^"]+)"\)\}\}(.*?)(?:\{\{else\}\}(.*?))?\{\{\/if\}\}/gs
+  template = template.replace(eqRegex, (_, propName, compareValue, trueContent, falseContent = '') => {
     const value = String(properties[propName] ?? '')
-    return value === compareValue ? content : ''
+    return value === compareValue ? trueContent : falseContent
   })
 
-  // 处理简单条件: {{#if prop}}...{{/if}}
-  const ifRegex = /\{\{#if\s+(\w+)\}\}(.*?)\{\{\/if\}\}/gs
-  template = template.replace(ifRegex, (_, propName, content) => {
+  // 处理简单条件: {{#if prop}}...{{else}}...{{/if}} 或 {{#if prop}}...{{/if}}
+  const ifRegex = /\{\{#if\s+(\w+)\}\}(.*?)(?:\{\{else\}\}(.*?))?\{\{\/if\}\}/gs
+  template = template.replace(ifRegex, (_, propName, trueContent, falseContent = '') => {
     const value = properties[propName]
     // 对于布尔值，检查是否为 true
     // 对于其他值，检查是否非空
     if (typeof value === 'boolean') {
-      return value ? content : ''
+      return value ? trueContent : falseContent
     }
-    return value ? content : ''
+    return value ? trueContent : falseContent
   })
 
   return template

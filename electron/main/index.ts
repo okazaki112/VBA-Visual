@@ -51,7 +51,8 @@ async function createWindow() {
     }
     mainWindow.webContents.openDevTools()
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    // 生产环境：dist-electron/main -> ../../dist/index.html
+    mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'))
   }
 
   mainWindow.on('closed', () => {
@@ -113,6 +114,32 @@ ipcMain.handle('fs:readFile', async (_event, filePath: string) => {
 })
 
 ipcMain.handle('fs:writeFile', async (_event, filePath: string, content: string) => {
+  try {
+    await fs.writeFile(filePath, content, 'utf-8')
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: (error as Error).message }
+  }
+})
+
+// 保存图片文件 (base64 或二进制)
+ipcMain.handle('fs:saveImage', async (_event, filePath: string, dataUrl: string) => {
+  try {
+    // 从 data URL 提取 base64 数据
+    const matches = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
+    if (!matches) {
+      return { success: false, error: 'Invalid data URL format' }
+    }
+    const buffer = Buffer.from(matches[2], 'base64')
+    await fs.writeFile(filePath, buffer)
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: (error as Error).message }
+  }
+})
+
+// 保存 SVG 文件
+ipcMain.handle('fs:saveSVG', async (_event, filePath: string, content: string) => {
   try {
     await fs.writeFile(filePath, content, 'utf-8')
     return { success: true }

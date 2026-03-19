@@ -1,11 +1,156 @@
 // 主题色彩系统
 :root {
-  // 主色调
+  // 默认变量（绿色主题作为基础）
+  --primary-color: #2abb78;
+  --primary-light: #4ed99a;
+  --primary-dark: #1e9a5f;
+
+  // 背景色 - 带主题色调（加深）
+  --bg-primary: #b8e0cc;
+  --bg-secondary: #c8ead8;
+  --bg-tertiary: #9ad4b8;
+  --bg-card: #c8ead8;
+
+  // 文字色
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  // 边框色
+  --border-color: #5cc490;
+  --border-light: #3dba7a;
+
+  // 积木分类颜色
+  --block-basic: #2abb78;
+  --block-control: #f59e0b;
+  --block-excel: #2abb78;
+  --block-data: #89ccff;
+  --block-interaction: #ec4899;
+  --block-file: #8b5cf6;
+  --block-advanced: #D06F0C;
+
+  // 状态色
+  --success: #2abb78;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #89ccff;
+
+  // 阴影
+  --shadow-sm: 0 1px 2px rgba(42, 187, 120, 0.15);
+  --shadow-md: 0 4px 6px rgba(42, 187, 120, 0.2);
+  --shadow-lg: 0 10px 15px rgba(42, 187, 120, 0.25);
+
+  // 圆角
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  // 过渡
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+}
+
+// ==================== 绿色主题（默认）====================
+[data-theme='green-light'] {
+  // 主色调 - 清新绿色
+  --primary-color: #2abb78;
+  --primary-light: #4ed99a;
+  --primary-dark: #1e9a5f;
+
+  // 背景色 - 淡绿色系（加深）
+  --bg-primary: #b8e0cc;
+  --bg-secondary: #c8ead8;
+  --bg-tertiary: #9ad4b8;
+  --bg-card: #c8ead8;
+
+  // 文字色
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  // 边框色
+  --border-color: #5cc490;
+  --border-light: #3dba7a;
+
+  // 阴影
+  --shadow-sm: 0 1px 2px rgba(42, 187, 120, 0.15);
+  --shadow-md: 0 4px 6px rgba(42, 187, 120, 0.2);
+  --shadow-lg: 0 10px 15px rgba(42, 187, 120, 0.25);
+
+  // 积木基础色
+  --block-basic: #2abb78;
+}
+
+// ==================== 蓝色主题 ====================
+[data-theme='blue-light'] {
+  // 主色调 - 商务蓝色
+  --primary-color: #5ba8e8;
+  --primary-light: #7fc0f0;
+  --primary-dark: #3a90d8;
+
+  // 背景色 - 淡蓝色系（加深）
+  --bg-primary: #a8c8e8;
+  --bg-secondary: #b8d5f0;
+  --bg-tertiary: #88b8e0;
+  --bg-card: #b8d5f0;
+
+  // 文字色
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  // 边框色
+  --border-color: #4a98d0;
+  --border-light: #3a88c0;
+
+  // 阴影
+  --shadow-sm: 0 1px 2px rgba(90, 168, 232, 0.15);
+  --shadow-md: 0 4px 6px rgba(90, 168, 232, 0.2);
+  --shadow-lg: 0 10px 15px rgba(90, 168, 232, 0.25);
+
+  // 积木基础色
+  --block-basic: #5ba8e8;
+}
+
+// ==================== 橙色主题 ====================
+[data-theme='orange-light'] {
+  // 主色调 - 活力橙色
+  --primary-color: #D06F0C;
+  --primary-light: #e89030;
+  --primary-dark: #a85709;
+
+  // 背景色 - 淡橙色系（加深）
+  --bg-primary: #f5d8b8;
+  --bg-secondary: #f8e2c8;
+  --bg-tertiary: #f0c89a;
+  --bg-card: #f8e2c8;
+
+  // 文字色
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+
+  // 边框色
+  --border-color: #d89040;
+  --border-light: #c87820;
+
+  // 阴影
+  --shadow-sm: 0 1px 2px rgba(208, 111, 12, 0.15);
+  --shadow-md: 0 4px 6px rgba(208, 111, 12, 0.2);
+  --shadow-lg: 0 10px 15px rgba(208, 111, 12, 0.25);
+
+  // 积木基础色
+  --block-basic: #D06F0C;
+}
+
+// ==================== 深色主题 ====================
+[data-theme='dark'] {
+  // 主色调 - 紫色系
   --primary-color: #6366f1;
   --primary-light: #818cf8;
   --primary-dark: #4f46e5;
 
-  // 背景色
+  // 背景色 - 深色系
   --bg-primary: #0f0f1a;
   --bg-secondary: #1a1a2e;
   --bg-tertiary: #16213e;
@@ -20,56 +165,44 @@
   --border-color: #2a2a4a;
   --border-light: #3a3a5a;
 
-  // 积木分类颜色
-  --block-basic: #6366f1;
-  --block-control: #f59e0b;
-  --block-excel: #10b981;
-  --block-data: #3b82f6;
-  --block-interaction: #ec4899;
-  --block-file: #8b5cf6;
-  --block-advanced: #ef4444;
-
-  // 状态色
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --info: #3b82f6;
-
   // 阴影
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
 
-  // 圆角
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-
-  // 过渡
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.3s ease;
+  // 积木基础色
+  --block-basic: #6366f1;
 }
 
-// 深色主题（默认）
-[data-theme='dark'] {
-  --bg-primary: #0f0f1a;
-  --bg-secondary: #1a1a2e;
-  --bg-tertiary: #16213e;
-  --bg-card: #1e1e3f;
+// ==================== 纯黑主题 ====================
+[data-theme='black'] {
+  // 主色调 - 青色系
+  --primary-color: #00d4ff;
+  --primary-light: #33ddff;
+  --primary-dark: #00a8cc;
+
+  // 背景色 - 纯黑系
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #141414;
+  --bg-card: #1a1a1a;
+
+  // 文字色
   --text-primary: #ffffff;
-  --text-secondary: #a0a0b0;
-  --border-color: #2a2a4a;
-}
+  --text-secondary: #b0b0b0;
+  --text-muted: #707070;
 
-// 浅色主题
-[data-theme='light'] {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --bg-card: #ffffff;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --border-color: #e2e8f0;
+  // 边框色
+  --border-color: #333333;
+  --border-light: #444444;
+
+  // 阴影
+  --shadow-sm: 0 1px 2px rgba(0, 212, 255, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 212, 255, 0.15);
+  --shadow-lg: 0 10px 15px rgba(0, 212, 255, 0.2);
+
+  // 积木基础色
+  --block-basic: #00d4ff;
 }
 
 // 积木分类颜色映射
@@ -97,7 +230,7 @@ $block-colors: (
 }
 
 @mixin glass-effect {
-  background: rgba(26, 26, 46, 0.8);
+  background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-color);
 }
@@ -118,6 +251,45 @@ $block-colors: (
 
     &:hover {
       background: var(--border-light);
+    }
+  }
+}
+
+// 连线动画
+@keyframes ant-line {
+  from {
+    stroke-dashoffset: 160;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+// 深色主题下的连线颜色
+[data-theme='dark'] {
+  .x6-edge {
+    .x6-edge-path {
+      stroke: #6366f1;
+    }
+  }
+}
+
+// 纯黑主题下的连线颜色
+[data-theme='black'] {
+  .x6-edge {
+    .x6-edge-path {
+      stroke: #00d4ff;
+    }
+  }
+}
+
+// 浅色主题下的连线颜色
+[data-theme='green-light'],
+[data-theme='blue-light'],
+[data-theme='orange-light'] {
+  .x6-edge {
+    .x6-edge-path {
+      stroke: var(--primary-color);
     }
   }
 }

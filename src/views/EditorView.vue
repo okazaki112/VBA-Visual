@@ -8,8 +8,10 @@
       <CanvasToolbar 
         :can-undo="canvasStore.canUndo"
         :can-redo="canvasStore.canRedo"
+        :zoom="canvasStore.zoom"
         @action="onToolbarAction" 
       />
+      <ShortcutHelp ref="shortcutHelpRef" />
       <div
         class="canvas-container"
         ref="canvasContainer"
@@ -37,7 +39,17 @@
           <PropertyPanel :selected-node="selectedNode" @update="onPropertyUpdate" @move-up="onMoveUp" @move-down="onMoveDown" @edit-code="onEditCode" />
         </el-tab-pane>
         <el-tab-pane label="代码预览" name="code">
-          <CodePreview :code="generatedCode" @copy="onCopyCode" @export="onExportCode" />
+          <CodePreview 
+          :code="generatedCode" 
+          :mappings="codeMappings"
+          :highlighted-block-id="highlightedBlockId"
+          @copy="onCopyCode" 
+          @export="onExportCode"
+          @line-click="onCodeLineClick"
+        />
+        </el-tab-pane>
+        <el-tab-pane label="历史" name="history">
+          <HistoryPanel @restore="onRestoreVersion" />
         </el-tab-pane>
       </el-tabs>
     </div>
@@ -149,11 +161,17 @@
         <el-button type="primary" @click="savePropertyDialog">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 导入代码对话框 -->
+    <ImportCodeDialog 
+      v-model="importDialogVisible" 
+      @import="onImportCode" 
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, provide, computed } from 'vue'
+import { ref, onMounted, onUnmounted, provide, computed, watch, nextTick } from 'vue'
 import { Graph } from '@antv/x6'
 // @ts-ignore - X6 plugins don't have proper type declarations
 import { History } from '@antv/x6-plugin-history'
@@ -165,16 +183,27 @@ import { Selection } from '@antv/x6-plugin-selection'
 import { Snapline } from '@antv/x6-plugin-snapline'
 // @ts-ignore
 import { Clipboard } from '@antv/x6-plugin-clipboard'
-import { ElMessage } from 'element-plus'
+// @ts-ignore
+import { Export } from '@antv/x6-plugin-export'
+// @ts-ignore
+import { Graph as LayoutGraph } from '@antv/graphlib'
+// @ts-ignore
+import { DagreLayout, GridLayout } from '@antv/layout'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import BlockToolbox from '@/components/blocks/BlockToolbox.vue'
 import CanvasToolbar from '@/components/canvas/CanvasToolbar.vue'
 import PropertyPanel from '@/components/panel/PropertyPanel.vue'
 import CodePreview from '@/components/panel/CodePreview.vue'
+import HistoryPanel from '@/components/panel/HistoryPanel.vue'
+import ImportCodeDialog from '@/components/panel/ImportCodeDialog.vue'
+import ShortcutHelp from '@/components/common/ShortcutHelp.vue'
 import { useBlockStore } from '@/stores/blockStore'
 import { useCanvasStore } from '@/stores/canvasStore'
+import { useHistoryStore } from '@/stores/historyStore'
+import { useThemeStore, getThemeColors } from '@/stores/themeStore'
 import { blockDefinitions, getBlockDefinition } from '@/utils/blockDefinitions'
 import { registerCustomNode, createBlockNode, createEdgeStyle, embedNode, unembedNode, canEmbed, updateNodeOrder } from '@/utils/customNode'
-import { generateCode, generateBlockCode } from '@/utils/codeGenerator'
+import { generateBlockCode, generateCodeWithMappings, type CodeMapping } from '@/utils/codeGenerator'
 import type { BlockInstance, BlockDefinition, Connection } from '@/types'
 import type { Node } from '@antv/x6'
 
@@ -184,16 +213,23 @@ createEdgeStyle()
 
 const blockStore = useBlockStore()
 const canvasStore = useCanvasStore()
+const historyStore = useHistoryStore()
+const themeStore = useThemeStore()
 
 const activeTab = ref('properties')
 const selectedNode = ref<BlockInstance | null>(null)
 const generatedCode = ref('')
+const codeMappings = ref<CodeMapping[]>([])
+const highlightedBlockId = ref<string | null>(null)
 const canvasContainer = ref<HTMLElement>()
 const x6Canvas = ref<HTMLElement>()
 
 // 右侧面板宽度调整
 const rightPanelWidth = ref(320)
 const isResizing = ref(false)
+
+// 快捷键帮助
+const shortcutHelpRef = ref<InstanceType<typeof ShortcutHelp> | null>(null)
 
 // 代码编辑器
 const codeEditorVisible = ref(false)
@@ -204,6 +240,9 @@ const editingBlockId = ref<string | null>(null)
 const propertyDialogVisible = ref(false)
 const editingBlock = ref<BlockInstance | null>(null)
 const dialogProperties = ref<Record<string, unknown>>({})
+
+// 导入代码对话框
+const importDialogVisible = ref(false)
 
 // 对话框中积木的定义
 const editingBlockDefinition = computed<BlockDefinition | null>(() => {
@@ -218,6 +257,49 @@ const propertyDialogTitle = computed(() => {
 
 let graph: Graph | null = null
 
+// 更新画布主题颜色
+const updateCanvasTheme = () => {
+  if (!graph) return
+  const colors = getThemeColors()
+  
+  // 更新背景颜色
+  graph.drawBackground({ color: colors.bgSecondary })
+  
+  // 更新网格颜色
+  graph.drawGrid({
+    type: 'dot',
+    args: {
+      color: colors.borderColor,
+      thickness: 1
+    }
+  })
+  
+  // 更新所有节点颜色 - 使用节点存储的积木颜色
+  const nodes = graph.getNodes()
+  nodes.forEach(node => {
+    const nodeColor = node.getData()?.color || colors.primary
+    node.setAttrs({
+      body: {
+        stroke: nodeColor,
+        fill: colors.bgCard
+      },
+      orderBadge: {
+        fill: nodeColor
+      }
+    })
+  })
+  
+  // 更新所有连线颜色
+  const edges = graph.getEdges()
+  edges.forEach(edge => {
+    edge.setAttrs({
+      line: {
+        stroke: colors.primary
+      }
+    })
+  })
+}
+
 // 初始化画布
 onMounted(() => {
   initCanvas()
@@ -225,10 +307,25 @@ onMounted(() => {
   window.addEventListener('resize', handleWindowResize)
 })
 
+// 监听主题变化
+watch(() => themeStore.theme, () => {
+  // 延迟更新以确保CSS变量已更新
+  nextTick(() => {
+    updateCanvasTheme()
+  })
+})
+
 onUnmounted(() => {
   graph?.dispose()
   window.removeEventListener('resize', handleWindowResize)
+  // 清理右键框选事件监听器
+  if (rubberbandCleanup) {
+    rubberbandCleanup()
+  }
 })
+
+// 右键框选清理函数
+let rubberbandCleanup: (() => void) | null = null
 
 // 处理窗口大小变化
 const handleWindowResize = () => {
@@ -243,21 +340,32 @@ const handleWindowResize = () => {
 const initCanvas = () => {
   if (!x6Canvas.value) return
 
+  // 获取当前主题颜色
+  const themeColors = getThemeColors()
+  
+  // @ts-ignore - X6 Graph 配置
   graph = new Graph({
     container: x6Canvas.value,
     width: x6Canvas.value.offsetWidth,
     height: x6Canvas.value.offsetHeight,
     background: {
-      color: '#1a1a2e'
+      color: themeColors.bgSecondary
     },
     grid: {
       visible: true,
       type: 'dot',
       size: 20,
       args: {
-        color: '#2a2a4a',
+        color: themeColors.borderColor,
         thickness: 1
       }
+    },
+    // 节点移动时吸附到网格
+    scroller: {
+      enabled: true,
+      pannable: true,
+      pageVisible: false,
+      pageBreak: false
     },
     panning: {
       enabled: true,
@@ -279,7 +387,7 @@ const initCanvas = () => {
       allowBlank: false,
       allowLoop: false,
       allowNode: true,
-      allowEdge: false,
+      allowEdge: true,  // 允许边作为连接源（重新连接）
       allowPort: true,
       highlight: true,
       connector: 'rounded',
@@ -289,20 +397,25 @@ const initCanvas = () => {
           padding: 20
         }
       },
-      validateConnection({ targetMagnet }) {
+      validateConnection({ targetMagnet }: { targetMagnet: unknown }) {
         return !!targetMagnet
       },
       createEdge() {
+        const colors = getThemeColors()
         return graph!.createEdge({
           shape: 'custom-edge',
           attrs: {
             line: {
-              stroke: '#6366f1',
-              strokeWidth: 2,
+              stroke: colors.primary,
+              strokeWidth: 3,
+              sourceMarker: {
+                name: 'circle',
+                r: 5
+              },
               targetMarker: {
                 name: 'block',
-                width: 8,
-                height: 8
+                width: 10,
+                height: 10
               }
             }
           },
@@ -328,8 +441,8 @@ const initCanvas = () => {
           padding: 4,
           attrs: {
             'stroke-width': 3,
-            stroke: '#6366f1',
-            fill: '#6366f133'
+            stroke: getThemeColors().primary,
+            fill: getThemeColors().primary + '33'
           }
         }
       }
@@ -338,16 +451,30 @@ const initCanvas = () => {
       nodeMovable: true,
       edgeMovable: true,
       edgeLabelMovable: true,
-      magnetConnectable: true
+      magnetConnectable: true,
+      arrowheadMovable: true
     }
-  })
+  } as any)
 
   // 使用插件
   graph.use(new History({ enabled: true }))
   graph.use(new Keyboard({ enabled: true }))
-  graph.use(new Selection({ enabled: true, multiple: true, rubberband: true }))
+  // Selection 插件配置：
+  // - rubberband: false 禁用左键框选
+  // - modifiers: [] 移除修饰键限制
+  // - movable: true 允许批量移动选中节点
+  // - showNodeSelectionBox: true 显示选中框
+  graph.use(new Selection({ 
+    enabled: true, 
+    multiple: true, 
+    rubberband: false, 
+    modifiers: [],
+    movable: true,
+    showNodeSelectionBox: true
+  }))
   graph.use(new Snapline({ enabled: true }))
   graph.use(new Clipboard({ enabled: true }))
+  graph.use(new Export())
 
   // 键盘快捷键
   const keyboard = graph.getPlugin('keyboard') as Keyboard
@@ -395,6 +522,11 @@ const initCanvas = () => {
         graph?.select(nodes)
       }
     })
+    // 帮助: F1
+    keyboard.bindKey('f1', (e: KeyboardEvent) => {
+      e.preventDefault()
+      shortcutHelpRef.value?.open()
+    })
     // 方向键移动节点
     const moveStep = 10
     const moveSelectedNodes = (dx: number, dy: number) => {
@@ -429,10 +561,55 @@ const initCanvas = () => {
     if (block) {
       node.setData({ properties: block.properties })
     }
+    // 添加选中效果：红色边框
+    node.setAttrs({
+      body: {
+        stroke: '#ef4444',
+        strokeWidth: 3
+      }
+    })
+    // 高亮对应代码行
+    highlightedBlockId.value = node.id
+    // 切换到代码预览标签页
+    activeTab.value = 'code'
   })
 
-  graph.on('node:unselected', () => {
-    selectedNode.value = null
+  graph.on('node:unselected', ({ node }) => {
+    // 恢复节点存储的积木颜色
+    const nodeColor = node.getData()?.color || getThemeColors().primary
+    node.setAttrs({
+      body: {
+        stroke: nodeColor,
+        strokeWidth: 2
+      }
+    })
+  })
+
+  // 监听选择变化（处理多选）
+  graph.on('selection:changed', ({ selected }) => {
+    // 更新 selectedNode（多选时显示第一个）
+    if (selected.length > 0) {
+      const firstNode = selected[0]
+      if (firstNode.isNode()) {
+        const block = blockStore.getBlockById(firstNode.id)
+        selectedNode.value = block
+      }
+      // 多选时为所有选中节点添加高亮效果
+      if (selected.length > 1) {
+        selected.forEach(cell => {
+          if (cell.isNode()) {
+            cell.setAttrs({
+              body: {
+                stroke: '#ef4444',
+                strokeWidth: 3
+              }
+            })
+          }
+        })
+      }
+    } else {
+      selectedNode.value = null
+    }
   })
 
   // 双击节点打开属性编辑对话框
@@ -447,13 +624,14 @@ const initCanvas = () => {
     }
   })
 
-  // 端口显示/隐藏交互
+  // 端口显示/隐藏交互 - 端口默认半透明可见
   graph.on('node:mouseenter', ({ node }) => {
     node.getPorts().forEach(port => {
       node.portProp(port.id!, {
         attrs: {
           circle: {
-            style: { visibility: 'visible' }
+            style: { visibility: 'visible', opacity: '1' },
+            strokeWidth: 3
           }
         }
       })
@@ -465,7 +643,8 @@ const initCanvas = () => {
       node.portProp(port.id!, {
         attrs: {
           circle: {
-            style: { visibility: 'hidden' }
+            style: { visibility: 'visible', opacity: '0.5' },
+            strokeWidth: 2
           }
         }
       })
@@ -474,16 +653,27 @@ const initCanvas = () => {
 
   // 监听节点移动
   graph.on('node:moved', ({ node }) => {
-    const position = node.position()
+    let position = node.position()
+    
+    // 网格吸附：将位置对齐到 20px 网格
+    const gridSize = 20
+    const snappedX = Math.round(position.x / gridSize) * gridSize
+    const snappedY = Math.round(position.y / gridSize) * gridSize
+    
+    // 如果位置有变化，更新节点位置
+    if (position.x !== snappedX || position.y !== snappedY) {
+      node.position(snappedX, snappedY)
+      position = { x: snappedX, y: snappedY }
+    }
+    
     blockStore.updateBlockPosition(node.id, position.x, position.y)
 
     // 检查是否需要嵌入容器
     checkAndEmbed(node)
 
-    // 如果没有连线，按位置自动排序
-    if (!blockStore.hasConnections) {
-      autoSortBlocks()
-    }
+    // 始终按位置自动排序并更新代码
+    autoSortBlocks()
+    updateGeneratedCode()
   })
 
   // 检查并嵌入容器节点
@@ -537,17 +727,75 @@ const initCanvas = () => {
 
   // 监听连接变化
   graph.on('edge:connected', ({ edge }) => {
-    canvasStore.addConnection({
+    const connectionData = {
       id: edge.id,
       sourceBlockId: edge.getSourceCellId() || '',
       sourcePortId: edge.getSourcePortId() || '',
       targetBlockId: edge.getTargetCellId() || '',
       targetPortId: edge.getTargetPortId() || ''
-    })
+    }
+    
+    // 检查是否已存在此连接（重新连接的情况）
+    const existingIndex = blockStore.connections.findIndex(c => c.id === edge.id)
+    if (existingIndex >= 0) {
+      // 更新现有连接
+      blockStore.connections[existingIndex] = connectionData
+    } else {
+      // 添加新连接
+      canvasStore.addConnection(connectionData)
+    }
+    
     // 连线后自动排序
     autoSortBlocks()
     updateGeneratedCode()
     updateUndoRedoState()
+  })
+
+  // 边悬停时显示可拖动端点工具
+  graph.on('edge:mouseenter', ({ edge }) => {
+    edge.setAttrs({
+      line: {
+        strokeWidth: 3,
+        stroke: '#818cf8'
+      }
+    })
+    // 添加端点拖动工具
+    edge.addTools([
+      {
+        name: 'source-arrowhead',
+        args: {
+          attrs: {
+            fill: '#818cf8',
+            stroke: '#fff',
+            'stroke-width': 2,
+            cursor: 'move'
+          }
+        }
+      },
+      {
+        name: 'target-arrowhead',
+        args: {
+          attrs: {
+            fill: '#818cf8',
+            stroke: '#fff',
+            'stroke-width': 2,
+            cursor: 'move'
+          }
+        }
+      }
+    ])
+  })
+
+  graph.on('edge:mouseleave', ({ edge }) => {
+    const colors = getThemeColors()
+    edge.setAttrs({
+      line: {
+        strokeWidth: 3,
+        stroke: colors.primary
+      }
+    })
+    // 移除端点拖动工具
+    edge.removeTools()
   })
 
   graph.on('edge:removed', ({ edge }) => {
@@ -563,6 +811,213 @@ const initCanvas = () => {
     updateUndoRedoState()
   })
 
+  // 监听撤销事件，同步 blockStore
+  graph.on('history:undo', () => {
+    syncGraphToStore()
+    autoSortBlocks()
+    updateGeneratedCode()
+  })
+
+  // 监听重做事件，同步 blockStore
+  graph.on('history:redo', () => {
+    syncGraphToStore()
+    autoSortBlocks()
+    updateGeneratedCode()
+  })
+
+  // 监听节点添加（包括粘贴操作）
+  graph.on('cell:added', ({ cell }) => {
+    if (cell.isNode()) {
+      const data = cell.getData()
+      // 检查是否已存在于 store（避免重复添加拖放节点）
+      if (!blockStore.getBlockById(cell.id) && data?.definitionId) {
+        // 获取积木定义以获取默认属性
+        const blockDef = getBlockDefinition(data.definitionId)
+        const defaultProperties: Record<string, unknown> = {}
+        if (blockDef) {
+          blockDef.properties.forEach(prop => {
+            defaultProperties[prop.id] = prop.defaultValue
+          })
+        }
+        
+        // 合并已有属性和默认属性
+        const properties = { ...defaultProperties, ...data.properties }
+        
+        const blockInstance: BlockInstance = {
+          id: cell.id,
+          definitionId: data.definitionId,
+          type: data.blockType,
+          position: { x: cell.position().x, y: cell.position().y },
+          properties,
+          order: blockStore.blocks.length + 1
+        }
+        blockStore.addBlock(blockInstance)
+        
+        // 更新节点数据，确保包含完整属性
+        cell.setData({
+          ...data,
+          properties
+        })
+        
+        autoSortBlocks()
+        updateGeneratedCode()
+      }
+    }
+  })
+
+  // 监听缩放变化
+  graph.on('scale', ({ sx }) => {
+    canvasStore.updateZoom(sx)
+  })
+
+  // ========== 右键框选功能（使用原生 DOM 事件）==========
+  let isRightMouseDown = false
+  let rubberbandRect: HTMLDivElement | null = null
+  let rubberbandStart: { x: number; y: number } | null = null
+  let rubberbandEnd: { x: number; y: number } | null = null
+
+  const container = graph!.container
+
+  // 右键按下 - 开始框选
+  const handleRightMouseDown = (e: MouseEvent) => {
+    // 只处理右键
+    if (e.button !== 2) return
+    
+    // 检查是否点击在空白区域（不是节点上）
+    const target = e.target as HTMLElement
+    if (target.closest('.x6-node')) return
+    
+    e.preventDefault()
+    isRightMouseDown = true
+    
+    // 获取画布坐标
+    const rect = container.getBoundingClientRect()
+    const translate = graph!.translate()
+    const x = (e.clientX - rect.left - translate.tx) / graph!.zoom()
+    const y = (e.clientY - rect.top - translate.ty) / graph!.zoom()
+    
+    rubberbandStart = { x, y }
+    rubberbandEnd = { x, y }
+    
+    // 创建框选矩形
+    rubberbandRect = document.createElement('div')
+    rubberbandRect.style.cssText = `
+      position: fixed;
+      border: 2px dashed #3b82f6;
+      background: rgba(59, 130, 246, 0.15);
+      pointer-events: none;
+      z-index: 10000;
+      left: ${e.clientX}px;
+      top: ${e.clientY}px;
+      width: 0px;
+      height: 0px;
+    `
+    document.body.appendChild(rubberbandRect)
+  }
+
+  // 鼠标移动 - 更新框选区域
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isRightMouseDown || !rubberbandRect || !rubberbandStart) return
+    
+    // 获取画布坐标
+    const rect = container.getBoundingClientRect()
+    const translate = graph!.translate()
+    const x = (e.clientX - rect.left - translate.tx) / graph!.zoom()
+    const y = (e.clientY - rect.top - translate.ty) / graph!.zoom()
+    
+    rubberbandEnd = { x, y }
+    
+    // 重新计算起始屏幕位置
+    const startScreenX = rect.left + rubberbandStart.x * graph!.zoom() + translate.tx
+    const startScreenY = rect.top + rubberbandStart.y * graph!.zoom() + translate.ty
+    
+    const screenLeft = Math.min(startScreenX, e.clientX)
+    const screenTop = Math.min(startScreenY, e.clientY)
+    const screenWidth = Math.abs(e.clientX - startScreenX)
+    const screenHeight = Math.abs(e.clientY - startScreenY)
+    
+    rubberbandRect.style.left = `${screenLeft}px`
+    rubberbandRect.style.top = `${screenTop}px`
+    rubberbandRect.style.width = `${screenWidth}px`
+    rubberbandRect.style.height = `${screenHeight}px`
+  }
+
+  // 右键松开 - 完成框选
+  const handleRightMouseUp = (_e: MouseEvent) => {
+    if (!isRightMouseDown || !rubberbandStart || !rubberbandEnd) return
+    
+    const startX = rubberbandStart.x
+    const startY = rubberbandStart.y
+    const endX = rubberbandEnd.x
+    const endY = rubberbandEnd.y
+    
+    // 计算框选区域
+    const left = Math.min(startX, endX)
+    const top = Math.min(startY, endY)
+    const width = Math.abs(endX - startX)
+    const height = Math.abs(endY - startY)
+    
+    // 只有拖动距离足够大才进行框选
+    if (width > 5 || height > 5) {
+      // 创建选择区域
+      const selectionRect = { x: left, y: top, width, height }
+      
+      // 查找区域内的节点
+      const nodes = graph!.getNodes()
+      const selectedNodes: Node[] = []
+      
+      nodes.forEach(node => {
+        const bbox = node.getBBox()
+        // 检查节点是否与框选区域相交
+        if (
+          bbox.x < selectionRect.x + selectionRect.width &&
+          bbox.x + bbox.width > selectionRect.x &&
+          bbox.y < selectionRect.y + selectionRect.height &&
+          bbox.y + bbox.height > selectionRect.y
+        ) {
+          selectedNodes.push(node)
+        }
+      })
+      
+      // 选中节点
+      if (selectedNodes.length > 0) {
+        graph!.select(selectedNodes)
+        ElMessage.success(`已选中 ${selectedNodes.length} 个积木`)
+      }
+    }
+    
+    // 清理
+    if (rubberbandRect && rubberbandRect.parentNode) {
+      rubberbandRect.parentNode.removeChild(rubberbandRect)
+    }
+    rubberbandRect = null
+    rubberbandStart = null
+    rubberbandEnd = null
+    isRightMouseDown = false
+  }
+
+  // 阻止右键菜单
+  const handleContextMenu = (e: MouseEvent) => {
+    // 在框选过程中阻止右键菜单
+    if (isRightMouseDown) {
+      e.preventDefault()
+    }
+  }
+
+  // 绑定原生事件
+  container.addEventListener('mousedown', handleRightMouseDown)
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleRightMouseUp)
+  container.addEventListener('contextmenu', handleContextMenu)
+
+  // 设置清理函数
+  rubberbandCleanup = () => {
+    container.removeEventListener('mousedown', handleRightMouseDown)
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleRightMouseUp)
+    container.removeEventListener('contextmenu', handleContextMenu)
+  }
+
   canvasStore.setGraph(graph)
 
   // 检查是否有待加载的项目数据（从首页加载示例）
@@ -576,21 +1031,41 @@ const initCanvas = () => {
 const restoreProjectToCanvas = (projectData: { blocks: BlockInstance[]; connections: Connection[] }) => {
   if (!graph) return
 
+  // 先添加所有 blocks 到 store（必须在创建节点之前）
+  projectData.blocks.forEach(block => {
+    if (!blockStore.getBlockById(block.id)) {
+      blockStore.addBlock(block)
+    }
+  })
+
   // 创建所有节点
   projectData.blocks.forEach(block => {
     const blockDef = getBlockDefinition(block.definitionId)
     if (blockDef) {
-      createBlockNode(graph!, blockDef, block.position.x, block.position.y, block.id, 1)
+      const node = createBlockNode(graph!, blockDef, block.position.x, block.position.y, block.id, block.order || 1)
+      // 更新节点数据
+      node.setData({
+        definitionId: block.definitionId,
+        blockType: block.type,
+        nestingType: blockDef.nestingType,
+        color: blockDef.color,
+        properties: { ...block.properties }
+      })
     }
   })
 
-  // 创建所有连接
+  // 创建所有连接（兼容旧端口 ID 和缺失端口 ID）
   projectData.connections.forEach(conn => {
+    // 兼容旧的端口 ID：out -> bottom, in -> top
+    // 同时处理 undefined 的情况，默认使用 bottom/top
+    const sourcePort = conn.sourcePortId === 'out' ? 'bottom' : (conn.sourcePortId || 'bottom')
+    const targetPort = conn.targetPortId === 'in' ? 'top' : (conn.targetPortId || 'top')
+    
     graph?.addEdge({
       id: conn.id,
       shape: 'custom-edge',
-      source: { cell: conn.sourceBlockId, port: conn.sourcePortId },
-      target: { cell: conn.targetBlockId, port: conn.targetPortId }
+      source: { cell: conn.sourceBlockId, port: sourcePort },
+      target: { cell: conn.targetBlockId, port: targetPort }
     })
   })
 
@@ -608,6 +1083,55 @@ const updateUndoRedoState = () => {
       canvasStore.updateUndoRedoState(history.canUndo(), history.canRedo())
     }
   }
+}
+
+// 从图形同步数据到 blockStore（用于撤销/重做后同步）
+const syncGraphToStore = () => {
+  if (!graph) return
+
+  const nodes = graph.getNodes()
+  const edges = graph.getEdges()
+
+  // 获取当前图形中的所有节点 ID
+  const currentNodeIds = new Set(nodes.map(n => n.id))
+
+  // 删除 store 中不存在于图形的积木
+  blockStore.blocks = blockStore.blocks.filter(b => currentNodeIds.has(b.id))
+
+  // 更新或添加图形中的节点到 store
+  nodes.forEach(node => {
+    const data = node.getData()
+    const pos = node.position()
+    const existingBlock = blockStore.getBlockById(node.id)
+
+    if (existingBlock) {
+      // 更新现有积木的位置和属性
+      existingBlock.position = { x: pos.x, y: pos.y }
+      if (data?.properties) {
+        existingBlock.properties = { ...data.properties }
+      }
+    } else if (data?.definitionId) {
+      // 添加新积木（撤销恢复的节点）
+      const blockInstance: BlockInstance = {
+        id: node.id,
+        definitionId: data.definitionId,
+        type: data.blockType,
+        position: { x: pos.x, y: pos.y },
+        properties: { ...data.properties },
+        order: blockStore.blocks.length + 1
+      }
+      blockStore.addBlock(blockInstance)
+    }
+  })
+
+  // 同步连接
+  blockStore.connections = edges.map(edge => ({
+    id: edge.id,
+    sourceBlockId: edge.getSourceCellId() || '',
+    sourcePortId: edge.getSourcePortId() || '',
+    targetBlockId: edge.getTargetCellId() || '',
+    targetPortId: edge.getTargetPortId() || ''
+  }))
 }
 
 // 处理拖放
@@ -632,25 +1156,34 @@ const onDrop = (event: DragEvent) => {
   // 创建节点 ID
   const nodeId = `block-${Date.now()}`
 
-  // 创建节点（order 先设为 1，后面会自动排序）
-  createBlockNode(graph, blockDef, point.x - nodeWidth, point.y - nodeHeight, nodeId, 1)
+  // 初始化默认属性
+  const defaultProperties: Record<string, unknown> = {}
+  blockDef.properties.forEach(prop => {
+    defaultProperties[prop.id] = prop.defaultValue
+  })
 
-  // 添加到 store
+  // 先添加到 store（必须在创建节点之前，否则 cell:added 事件会重复添加）
   const blockInstance: BlockInstance = {
     id: nodeId,
     definitionId: blockId,
     type: blockDef.type,
     position: { x: point.x - nodeWidth, y: point.y - nodeHeight },
-    properties: {},
+    properties: { ...defaultProperties },
     order: 1
   }
-
-  // 初始化默认属性
-  blockDef.properties.forEach(prop => {
-    blockInstance.properties[prop.id] = prop.defaultValue
-  })
-
   blockStore.addBlock(blockInstance)
+
+  // 创建节点（order 先设为 1，后面会自动排序）
+  const node = createBlockNode(graph, blockDef, point.x - nodeWidth, point.y - nodeHeight, nodeId, 1)
+  
+  // 更新节点数据，包含完整属性
+  node.setData({
+    definitionId: blockId,
+    blockType: blockDef.type,
+    nestingType: blockDef.nestingType,
+    color: blockDef.color,
+    properties: { ...defaultProperties }
+  })
   
   // 添加节点后自动排序
   autoSortBlocks()
@@ -665,7 +1198,7 @@ const onDragStart = (block: BlockDefinition, event: DragEvent) => {
   event.dataTransfer!.effectAllowed = 'copy'
 }
 
-const onToolbarAction = (action: string) => {
+const onToolbarAction = (action: string, payload?: Record<string, unknown>) => {
   const history = graph?.getPlugin('history') as History | undefined
   
   switch (action) {
@@ -686,12 +1219,28 @@ const onToolbarAction = (action: string) => {
     case 'zoom-fit':
       graph?.zoomToFit({ padding: 20 })
       break
+    case 'zoom-reset':
+      graph?.zoomTo(1)
+      break
     case 'clear':
-      graph?.clearCells()
-      blockStore.clearBlocks()
-      generatedCode.value = ''
-      history?.clean()
-      updateUndoRedoState()
+      ElMessageBox.confirm(
+        '确定要清空画布吗？此操作不可撤销。',
+        '清空画布',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      ).then(() => {
+        graph?.clearCells()
+        blockStore.clearBlocks()
+        generatedCode.value = ''
+        history?.clean()
+        updateUndoRedoState()
+        ElMessage.success('画布已清空')
+      }).catch(() => {
+        // 用户取消
+      })
       break
     case 'save':
       saveProject()
@@ -699,8 +1248,22 @@ const onToolbarAction = (action: string) => {
     case 'load':
       loadProject()
       break
-    case 'export':
-      exportProject()
+    case 'export-code':
+      exportCode()
+      break
+    case 'export-png':
+      exportAsImage('png')
+      break
+    case 'export-svg':
+      exportAsImage('svg')
+      break
+    case 'import-code':
+      importDialogVisible.value = true
+      break
+    case 'layout':
+      if (payload) {
+        autoLayout(payload.type as string, payload)
+      }
       break
   }
 }
@@ -744,27 +1307,97 @@ const updateAllNodeOrders = () => {
   blockStore.sortedBlocks.forEach(block => {
     const node = graph?.getCellById(block.id)
     if (node && node.isNode()) {
-      const blockDef = getBlockDefinition(block.definitionId)
-      updateNodeOrder(node, block.order, blockDef?.color)
+      updateNodeOrder(node, block.order)
     }
   })
 }
 
-// 自动排序积木（始终按 Y 坐标排序显示编号）
+// 自动排序积木（有连线时按连线顺序，无连线时按 Y 坐标）
 const autoSortBlocks = () => {
   if (!graph) return
 
   const edges = graph.getEdges()
   const hasConnections = edges.length > 0
 
-  // 始终按位置排序（Y 坐标优先）
-  sortBlocksByPosition()
+  if (hasConnections) {
+    // 有连线：按连线顺序排序，锁定顺序
+    sortBlocksByConnections()
+  } else {
+    // 无连线：按位置排序
+    sortBlocksByPosition()
+  }
 
   // 更新节点编号显示
   updateAllNodeOrders()
   
   // 更新排序模式（用于代码生成时的逻辑判断）
   blockStore.setSortMode(hasConnections ? 'connection' : 'position')
+}
+
+// 按连线顺序排序（有连线时使用）
+const sortBlocksByConnections = () => {
+  if (!graph) return
+
+  const nodes = graph.getNodes()
+  const edges = graph.getEdges()
+  
+  if (edges.length === 0) {
+    sortBlocksByPosition()
+    return
+  }
+
+  // 构建连接映射
+  const connectionMap = new Map<string, string[]>()
+  edges.forEach(edge => {
+    const sourceId = edge.getSourceCellId()
+    const targetId = edge.getTargetCellId()
+    if (sourceId && targetId) {
+      const existing = connectionMap.get(sourceId) || []
+      existing.push(targetId)
+      connectionMap.set(sourceId, existing)
+    }
+  })
+
+  // 找出入口节点（没有被连接作为目标的节点）
+  const targetIds = new Set(edges.map(e => e.getTargetCellId()))
+  const entryNodes = nodes.filter(n => !targetIds.has(n.id))
+
+  // 按连线顺序遍历
+  const visited = new Set<string>()
+  const ordered: { id: string; order: number }[] = []
+  let order = 1
+
+  const traverse = (nodeId: string) => {
+    if (visited.has(nodeId)) return
+    visited.add(nodeId)
+    ordered.push({ id: nodeId, order: order++ })
+
+    const nextIds = connectionMap.get(nodeId) || []
+    // 按 Y 坐标排序分支节点
+    const sortedNextIds = [...nextIds].sort((a, b) => {
+      const nodeA = nodes.find(n => n.id === a)
+      const nodeB = nodes.find(n => n.id === b)
+      if (nodeA && nodeB) {
+        return nodeA.position().y - nodeB.position().y
+      }
+      return 0
+    })
+    sortedNextIds.forEach(traverse)
+  }
+
+  // 从入口节点开始遍历（按 Y 坐标排序）
+  entryNodes.sort((a, b) => a.position().y - b.position().y).forEach(node => {
+    traverse(node.id)
+  })
+
+  // 处理孤立节点（未连接到流程中的节点，按 Y 坐标排序放在最后）
+  const orphanNodes = nodes.filter(n => !visited.has(n.id))
+    .sort((a, b) => a.position().y - b.position().y)
+  orphanNodes.forEach(node => {
+    ordered.push({ id: node.id, order: order++ })
+  })
+
+  blockStore.batchUpdateOrders(ordered)
 }
 
 // 按位置排序（Y 坐标优先，X 坐标次之）
@@ -791,9 +1424,184 @@ const sortBlocksByPosition = () => {
   blockStore.batchUpdateOrders(orders)
 }
 
+// 一键自动排版
+const autoLayout = async (type: string, options: Record<string, unknown> = {}) => {
+  if (!graph) return
+
+  const nodes = graph.getNodes()
+  const edges = graph.getEdges()
+
+  if (nodes.length === 0) {
+    ElMessage.warning('画布上没有节点')
+    return
+  }
+
+  // 构建 @antv/graphlib 需要的数据格式
+  const layoutNodes = nodes.map(n => {
+    const size = n.getSize()
+    return {
+      id: n.id,
+      data: {
+        width: size.width || 180,
+        height: size.height || 60
+      }
+    }
+  })
+
+  const layoutEdges = edges.map(e => ({
+    id: e.id,
+    source: e.getSourceCellId() || '',
+    target: e.getTargetCellId() || ''
+  }))
+
+  // 创建 LayoutGraph 实例
+  const layoutGraph = new LayoutGraph({
+    nodes: layoutNodes,
+    edges: layoutEdges as any
+  })
+
+  let layoutResult: { nodes: { id: string; data: { x: number; y: number; width: number; height: number } }[] } = { nodes: [] }
+
+  if (type === 'dagre') {
+    // Dagre 层次布局
+    const direction = (options.direction as string) || 'TB'
+    const dagreLayout = new DagreLayout({
+      rankdir: direction as any,
+      nodesep: 80,
+      ranksep: 100,
+      nodeSize: [180, 60]
+    } as any)
+    layoutResult = await dagreLayout.execute(layoutGraph as any) as any
+    ElMessage.success(`已应用${direction === 'TB' ? '从上到下' : '从左到右'}布局`)
+  } else if (type === 'grid') {
+    // 网格布局（蛇形排列：按执行顺序，奇数行从左到右，偶数行从右到左）
+    const cols = (options.cols as number) || 3
+    const customRows = options.rows as number | undefined
+    const rows = customRows || Math.ceil(nodes.length / cols)
+    
+    // 按执行顺序获取节点
+    const sortedBlocks = blockStore.sortedBlocks
+    
+    // 计算每个节点的位置（蛇形排列）
+    const nodeWidth = 180
+    const nodeHeight = 60
+    const gapX = 40  // 水平间距
+    const gapY = 40  // 垂直间距
+    const startX = 100
+    const startY = 100
+    
+    sortedBlocks.forEach((block, index) => {
+      const row = Math.floor(index / cols)
+      const col = index % cols
+      // 蛇形排列：偶数行从左到右，奇数行从右到左
+      const actualCol = row % 2 === 0 ? col : cols - 1 - col
+      
+      const x = startX + actualCol * (nodeWidth + gapX)
+      const y = startY + row * (nodeHeight + gapY)
+      
+      const graphNode = graph?.getCellById(block.id)
+      if (graphNode && graphNode.isNode()) {
+        graphNode.position(x, y)
+        blockStore.updateBlockPosition(block.id, x, y)
+      }
+    })
+    
+    // 更新连线端口（根据蛇形排列方向）
+    const edges = graph?.getEdges()
+    edges?.forEach(edge => {
+      const sourceId = edge.getSourceCellId()
+      const targetId = edge.getTargetCellId()
+      
+      const sourceBlock = sortedBlocks.find(b => b.id === sourceId)
+      const targetBlock = sortedBlocks.find(b => b.id === targetId)
+      
+      if (sourceBlock && targetBlock) {
+        const sourceIndex = sortedBlocks.indexOf(sourceBlock)
+        const targetIndex = sortedBlocks.indexOf(targetBlock)
+        
+        const sourceRow = Math.floor(sourceIndex / cols)
+        const targetRow = Math.floor(targetIndex / cols)
+        
+        if (sourceRow === targetRow) {
+          // 同一行：横向连接
+          const isLeftToRight = sourceRow % 2 === 0
+          edge.setSource({ cell: sourceId!, port: isLeftToRight ? 'right' : 'left' })
+          edge.setTarget({ cell: targetId!, port: isLeftToRight ? 'left' : 'right' })
+        } else {
+          // 跨行：纵向连接
+          edge.setSource({ cell: sourceId!, port: 'bottom' })
+          edge.setTarget({ cell: targetId!, port: 'top' })
+        }
+      }
+    })
+    
+    ElMessage.success(`已应用蛇形网格布局 (${cols}列 × ${rows}行)`)
+    
+    // 重新排序
+    autoSortBlocks()
+    updateGeneratedCode()
+    
+    // 适应画布
+    setTimeout(() => {
+      graph?.zoomToFit({ padding: 50, maxScale: 1 })
+    }, 100)
+    return
+  }
+
+  // 应用布局结果到节点
+  layoutResult.nodes.forEach(node => {
+    const graphNode = graph?.getCellById(node.id)
+    if (graphNode && graphNode.isNode()) {
+      // 布局返回的是节点中心点坐标，需要转换为左上角坐标
+      const x = node.data.x - (node.data.width || 180) / 2
+      const y = node.data.y - (node.data.height || 60) / 2
+      graphNode.position(x, y)
+      // 更新 store 中的位置
+      blockStore.updateBlockPosition(node.id, x, y)
+    }
+  })
+
+  // 重新排序
+  autoSortBlocks()
+  updateGeneratedCode()
+
+  // 适应画布
+  setTimeout(() => {
+    graph?.zoomToFit({ padding: 50, maxScale: 1 })
+  }, 100)
+}
+
 // 更新生成的代码
 const updateGeneratedCode = () => {
-  generatedCode.value = generateCode(blockStore.blocks, blockStore.connections)
+  const result = generateCodeWithMappings(blockStore.blocks, blockStore.connections)
+  generatedCode.value = result.code
+  codeMappings.value = result.mappings
+}
+
+// 代码行点击事件处理
+const onCodeLineClick = (blockId: string) => {
+  // 高亮对应的积木
+  highlightedBlockId.value = blockId
+  
+  // 选中对应的节点
+  const node = graph?.getCellById(blockId)
+  if (node && node.isNode()) {
+    graph?.cleanSelection()
+    graph?.select(node)
+    
+    // 将节点滚动到视图中
+    node.toFront()
+    graph?.centerCell(node)
+    
+    // 更新 selectedNode
+    const block = blockStore.getBlockById(blockId)
+    selectedNode.value = block
+    
+    // 3秒后取消高亮
+    setTimeout(() => {
+      highlightedBlockId.value = null
+    }, 3000)
+  }
 }
 
 const onCopyCode = async () => {
@@ -816,11 +1624,13 @@ const onExportCode = async () => {
   }
 }
 
-const saveProject = async () => {
+const saveProject = async (): Promise<boolean> => {
+  console.log('saveProject called, electronAPI:', !!window.electronAPI)
   const result = await window.electronAPI?.dialog.save({
     filters: [{ name: 'VBA 项目', extensions: ['vba.json'] }],
     defaultPath: 'project.vba.json'
   })
+  console.log('dialog.save result:', result)
   if (result && !result.canceled && result.filePath) {
     const projectData = {
       version: '1.0.0',
@@ -833,11 +1643,21 @@ const saveProject = async () => {
       JSON.stringify(projectData, null, 2)
     )
     if (writeResult?.success) {
+      // 保存成功后创建版本快照
+      historyStore.saveVersion(
+        blockStore.blocks,
+        blockStore.connections,
+        `保存: ${result.filePath.split(/[/\\]/).pop()}`
+      )
       ElMessage.success('项目已保存')
+      return true
     } else {
       ElMessage.error(`保存失败: ${writeResult?.error}`)
+      return false
     }
   }
+  // 用户取消了保存对话框
+  return false
 }
 
 const loadProject = async () => {
@@ -885,9 +1705,193 @@ const loadProject = async () => {
   }
 }
 
-const exportProject = () => {
-  // 导出项目就是保存项目
-  saveProject()
+const exportCode = () => {
+  // 复制代码到剪贴板
+  navigator.clipboard.writeText(generatedCode.value).then(() => {
+    ElMessage.success('代码已复制到剪贴板')
+  }).catch(() => {
+    ElMessage.error('复制失败')
+  })
+}
+
+const exportAsImage = async (format: 'png' | 'svg') => {
+  if (!graph) return
+  
+  const nodes = graph.getNodes()
+  if (nodes.length === 0) {
+    ElMessage.warning('画布为空，无法导出')
+    return
+  }
+
+  const defaultFilename = `vba-flowchart-${Date.now()}`
+  
+  // 使用 Electron 对话框选择保存位置
+  const result = await window.electronAPI?.dialog.save({
+    title: '保存图片',
+    defaultPath: defaultFilename,
+    filters: [
+      { name: format === 'png' ? 'PNG 图片' : 'SVG 图片', extensions: [format] }
+    ]
+  })
+
+  console.log('Dialog result:', result)
+
+  if (!result || result.canceled || !result.filePath) {
+    return
+  }
+
+  const filePath = result.filePath
+  console.log('Save to:', filePath)
+
+  if (format === 'png') {
+    // 使用 canvas 方式导出 PNG
+    try {
+      // 获取画布容器
+      const container = document.getElementById('x6-canvas')
+      if (!container) {
+        ElMessage.error('无法找到画布容器')
+        return
+      }
+      
+      // 获取 SVG 元素
+      const svgElement = container.querySelector('svg.x6-graph-svg') as SVGSVGElement
+      if (!svgElement) {
+        ElMessage.error('无法找到画布 SVG')
+        return
+      }
+
+      // 克隆 SVG
+      const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement
+      
+      // 获取画布边界
+      const bbox = graph.getContentBBox()
+      const padding = 20
+      const width = bbox.width + padding * 2
+      const height = bbox.height + padding * 2
+      
+      // 设置 SVG 属性
+      clonedSvg.setAttribute('width', String(width))
+      clonedSvg.setAttribute('height', String(height))
+      clonedSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${width} ${height}`)
+      
+      // 添加背景色
+      const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+      bgRect.setAttribute('x', String(bbox.x - padding))
+      bgRect.setAttribute('y', String(bbox.y - padding))
+      bgRect.setAttribute('width', String(width))
+      bgRect.setAttribute('height', String(height))
+      bgRect.setAttribute('fill', '#1a1a2e')
+      clonedSvg.insertBefore(bgRect, clonedSvg.firstChild)
+      
+      // 序列化 SVG
+      const svgData = new XMLSerializer().serializeToString(clonedSvg)
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' })
+      const svgUrl = URL.createObjectURL(svgBlob)
+      
+      // 创建图片
+      const img = new Image()
+      img.onload = async () => {
+        // 创建 canvas
+        const canvas = document.createElement('canvas')
+        canvas.width = width * 2  // 2x for high DPI
+        canvas.height = height * 2
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          ElMessage.error('无法创建 canvas')
+          return
+        }
+        
+        // 设置背景色
+        ctx.fillStyle = '#1a1a2e'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        
+        // 绘制 SVG
+        ctx.scale(2, 2)
+        ctx.drawImage(img, 0, 0)
+        
+        // 转换为 data URL
+        const dataUrl = canvas.toDataURL('image/png')
+        
+        // 保存文件
+        const saveResult = await window.electronAPI?.fs.saveImage(filePath, dataUrl)
+        console.log('saveImage result:', saveResult)
+        
+        if (saveResult?.success) {
+          ElMessage.success('PNG 图片已导出')
+        } else {
+          ElMessage.error('导出失败: ' + (saveResult?.error || '未知错误'))
+        }
+        
+        URL.revokeObjectURL(svgUrl)
+      }
+      
+      img.onerror = () => {
+        ElMessage.error('图片加载失败')
+        URL.revokeObjectURL(svgUrl)
+      }
+      
+      img.src = svgUrl
+      
+    } catch (error) {
+      console.error('导出 PNG 失败:', error)
+      ElMessage.error('导出失败')
+    }
+  } else {
+    // 导出为 SVG
+    try {
+      // 获取画布容器
+      const container = document.getElementById('x6-canvas')
+      if (!container) {
+        ElMessage.error('无法找到画布容器')
+        return
+      }
+      
+      // 获取 SVG 元素
+      const svgElement = container.querySelector('svg.x6-graph-svg') as SVGSVGElement
+      if (!svgElement) {
+        ElMessage.error('无法找到画布 SVG')
+        return
+      }
+
+      // 克隆 SVG
+      const clonedSvg = svgElement.cloneNode(true) as SVGSVGElement
+      
+      // 获取画布边界
+      const bbox = graph.getContentBBox()
+      const padding = 20
+      const width = bbox.width + padding * 2
+      const height = bbox.height + padding * 2
+      
+      // 设置 SVG 属性
+      clonedSvg.setAttribute('width', String(width))
+      clonedSvg.setAttribute('height', String(height))
+      clonedSvg.setAttribute('viewBox', `${bbox.x - padding} ${bbox.y - padding} ${width} ${height}`)
+      
+      // 添加背景色
+      const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+      bgRect.setAttribute('x', String(bbox.x - padding))
+      bgRect.setAttribute('y', String(bbox.y - padding))
+      bgRect.setAttribute('width', String(width))
+      bgRect.setAttribute('height', String(height))
+      bgRect.setAttribute('fill', '#1a1a2e')
+      clonedSvg.insertBefore(bgRect, clonedSvg.firstChild)
+      
+      // 序列化 SVG
+      const svgData = new XMLSerializer().serializeToString(clonedSvg)
+      
+      const saveResult = await window.electronAPI?.fs.saveSVG(filePath, svgData)
+      console.log('saveSVG result:', saveResult)
+      
+      if (saveResult?.success) {
+        ElMessage.success('SVG 图片已导出')
+      } else {
+        ElMessage.error('导出失败: ' + (saveResult?.error || '未知错误'))
+      }
+    } catch (error) {
+      console.error('导出 SVG 失败:', error)
+      ElMessage.error('导出失败')
+    }
+  }
 }
 
 // ==================== 右侧面板宽度调整 ====================
@@ -954,6 +1958,33 @@ const savePropertyDialog = () => {
     propertyDialogVisible.value = false
     ElMessage.success('属性已保存')
   }
+}
+
+// ==================== 版本历史功能 ====================
+const onRestoreVersion = (version: { blocks: BlockInstance[]; connections: Connection[] }) => {
+  if (!graph) return
+
+  // 清空当前画布
+  graph.clearCells()
+  blockStore.clearBlocks()
+
+  // 恢复版本数据
+  restoreProjectToCanvas(version)
+}
+
+// ==================== 导入代码功能 ====================
+const onImportCode = (data: { blocks: BlockInstance[]; connections: Connection[] }) => {
+  if (!graph) return
+
+  // 将导入的积木添加到画布
+  restoreProjectToCanvas(data)
+  
+  // 创建版本快照
+  historyStore.saveVersion(
+    blockStore.blocks,
+    blockStore.connections,
+    '导入 VBA 代码'
+  )
 }
 
 // 提供画布实例
