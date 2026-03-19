@@ -1,13 +1,11 @@
 [English](./README.md) | [简体中文](./README_CN.md)
 
 <div align="center">
-  <img src="public/test.png" alt="VBA Visual 截图" width="600">
-  <img src="public/test1.png" alt="VBA Visual Screenshot" width="600">
-  <img src="public/test2.png" alt="VBA Visual Screenshot" width="600">
+  <video src="public/test1.mp4" controls width="600" poster="public/test.png">
+    您的浏览器不支持视频播放
+  </video>
   
   <h1>VBA 可视化编辑器</h1>
-  
-  > 📹 [观看演示视频](public/test.mp4)
   
   <p><strong>拖拽积木，轻松生成 VBA 代码</strong></p>
   

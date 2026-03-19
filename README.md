@@ -1,14 +1,11 @@
 [English](./README.md) | [简体中文](./README_CN.md)
 
 <div align="center">
-  <img src="public/test.png" alt="VBA Visual Screenshot" width="600">
-  <img src="public/test1.png" alt="VBA Visual Screenshot" width="600">
-  <img src="public/test2.png" alt="VBA Visual Screenshot" width="600">
+  <video src="public/test1.mp4" controls width="600" poster="public/test.png">
+    Your browser does not support video playback
+  </video>
   
   <h1>VBA Visual Editor</h1>
-  
-  > 📹 [Watch Demo Video](public/test.mp4)
-
   
   <p><strong>Drag-and-drop VBA code generator for Excel automation</strong></p>
   
