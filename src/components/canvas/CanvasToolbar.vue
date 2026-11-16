@@ -323,12 +323,29 @@ const applyCustomGrid = () => {
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   gap: 8px;
+  // 中间栏被右栏/工具箱压缩时，溢出按钮在容器内横向滚动，
+  // 而不是溢出可见区被右侧面板盖住
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 2px;
+  }
 }
 
 .toolbar-group {
   display: flex;
   align-items: center;
   gap: 4px;
+  // 按钮组保持完整不收缩，避免窄宽度下被压扁变形
+  flex-shrink: 0;
 }
 
 .toolbar-spacer {

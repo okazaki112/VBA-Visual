@@ -48,8 +48,8 @@ export function parseVBACode(code: string): ParseResult {
   }
 
   try {
-    // 预处理：移除空行，规范化代码
-    const lines = preprocessCode(code)
+    // 预处理：移除空行，规范化代码；剥离顶层 Sub/Function 包装（过程体展开为顶层积木流）
+    const lines = unwrapProcedureWrappers(preprocessCode(code), result)
 
     // 解析代码块
     const parsedBlocks = parseLines(lines, result)
@@ -101,6 +101,45 @@ function preprocessCode(code: string): string[] {
     .filter(line => line.length > 0)
 
   return lines
+}
+
+/**
+ * 剥离顶层 Sub / Function 过程包装
+ * 生成器对顶层普通积木会自动包装 Sub（见 codeGenerator 的 SUB_DEFINE 处理），
+ * 因此导入代码时应把过程体展开为顶层语句流拆解成积木，
+ * 而不是把整段代码塞进一个 Sub 定义积木（bodyCode 原文）。
+ * VBA 过程不可嵌套，遇到过程头即线性收集到对应 End Sub / End Function。
+ */
+function unwrapProcedureWrappers(lines: string[], result: ParseResult): string[] {
+  const out: string[] = []
+  let i = 0
+  let unwrappedCount = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+    const match = line.match(/^(?:Public|Private)?\s*(Sub|Function)\s+([\w\u4e00-\u9fff]+)/i)
+
+    if (match) {
+      const kind = match[1].toUpperCase() === 'SUB' ? 'Sub' : 'Function'
+      const endTag = 'END ' + kind.toUpperCase()
+      unwrappedCount++
+      result.warnings.push(`已剥离 ${kind} 包装「${match[2]}」，过程体展开为积木`)
+      i++ // 跳过过程头
+      while (i < lines.length) {
+        if (lines[i].toUpperCase().startsWith(endTag)) { i++; break }
+        out.push(lines[i])
+        i++
+      }
+      continue
+    }
+    out.push(line)
+    i++
+  }
+
+  if (unwrappedCount > 0) {
+    result.warnings.push(`共剥离 ${unwrappedCount} 个过程包装，过程体已按语句拆解为积木`)
+  }
+  return unwrappedCount > 0 ? out : lines
 }
 
 /**
