@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VBA-Visual — 拖拽积木，轻松生成 VBA 代码</title>
+<meta name="description" content="VBA-Visual：基于 Electron + Vue3 的 VBA 可视化积木编辑器，把 Excel 自动化开发变成搭积木。">
+<style>
+:root {
+  --primary: #2563EB;
+  --primary-dark: #1D4ED8;
+  --secondary: #3B82F6;
+  --cta: #F97316;
+  --cta-dark: #EA580C;
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --text: #1E293B;
+  --text-muted: #475569;
+  --border: #000000;
+  --shadow: 4px 4px 0 #000000;
+  --shadow-lg: 6px 6px 0 #000000;
+  --radius: 0px;
+  --font: 'Inter', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --mono: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  --transition: 200ms ease;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  cursor: default;
+}
+a, button, .clickable { cursor: pointer; }
+a:focus-visible, button:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+img, svg { vertical-align: middle; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+/* ===== Nav ===== */
+nav {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--bg);
+  border-bottom: 3px solid var(--border);
+}
+.nav-inner {
+  max-width: 1100px; margin: 0 auto; padding: 14px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  font-weight: 800; font-size: 1.15rem; text-decoration: none; color: var(--text);
+}
+.logo-badge {
+  width: 34px; height: 34px; display: grid; place-items: center;
+  background: var(--primary); border: 3px solid var(--border);
+  box-shadow: 3px 3px 0 #000; color: #fff; flex-shrink: 0;
+}
+.nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.nav-links a {
+  text-decoration: none; color: var(--text);
+  font-weight: 600; font-size: .92rem;
+  padding: 8px 14px; border: 2px solid transparent;
+  transition: all var(--transition);
+}
+.nav-links a:hover { border: 2px solid var(--border); box-shadow: 3px 3px 0 #000; background: var(--surface); }
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 26px; text-decoration: none;
+  font-weight: 800; font-size: 1rem;
+  border: 3px solid var(--border); box-shadow: var(--shadow);
+  transition: all var(--transition);
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); transform: translate(-2px,-2px); box-shadow: 6px 6px 0 #000; }
+.btn-cta { background: var(--cta); color: #fff; }
+.btn-cta:hover { background: var(--cta-dark); transform: translate(-2px,-2px); box-shadow: 6px 6px 0 #000; }
+.btn-ghost { background: var(--surface); color: var(--text); }
+.btn-ghost:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 #000; }
+
+/* ===== Hero ===== */
+.hero { padding: 72px 0 56px; }
+.hero-grid {
+  display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center;
+}
+.hero-tag {
+  display: inline-block; padding: 5px 14px; margin-bottom: 20px;
+  background: #FDE68A; border: 2px solid var(--border); box-shadow: 3px 3px 0 #000;
+  font-weight: 700; font-size: .85rem;
+}
+h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); font-weight: 900; line-height: 1.15; letter-spacing: -.02em; }
+h1 .accent { color: var(--primary); }
+.hero-sub { margin: 18px 0 30px; font-size: 1.15rem; color: var(--text-muted); max-width: 46ch; }
+.hero-actions { display: flex; gap: 16px; flex-wrap: wrap; }
+.hero-badges { margin-top: 26px; display: flex; gap: 8px; flex-wrap: wrap; }
+.badge {
+  font-size: .78rem; font-weight: 700; padding: 4px 10px;
+  border: 2px solid var(--border); background: var(--surface);
+}
+
+/* ===== App mockup (pure CSS) ===== */
+.app-mock {
+  border: 3px solid var(--border); box-shadow: var(--shadow-lg);
+  background: var(--surface); overflow: hidden;
+  transition: transform var(--transition);
+}
+.app-mock:hover { transform: translate(-2px,-2px); }
+.mock-titlebar {
+  display: flex; align-items: center; gap: 8px;
+  background: #E2E8F0; border-bottom: 3px solid var(--border); padding: 8px 12px;
+}
+.dot { width: 11px; height: 11px; border: 2px solid var(--border); }
+.dot-r { background: #EF4444; } .dot-y { background: #FACC15; } .dot-g { background: #22C55E; }
+.mock-title { font-size: .78rem; font-weight: 700; color: var(--text-muted); margin-left: 6px; }
+.mock-body { display: grid; grid-template-columns: 130px 1fr 165px; min-height: 330px; }
+.mock-toolbox { border-right: 3px solid var(--border); background: #F1F5F9; padding: 10px; }
+.mock-toolbox h4 { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; color: var(--text-muted); }
+.mock-block {
+  font-size: .72rem; font-weight: 700; padding: 6px 8px; margin-bottom: 7px;
+  border: 2px solid var(--border); box-shadow: 2px 2px 0 #000; background: #fff;
+}
+.mb-flow { background: #DBEAFE; } .mb-excel { background: #DCFCE7; } .mb-data { background: #FEF3C7; } .mb-io { background: #FCE7F3; }
+.mock-canvas { position: relative; background:
+  linear-gradient(#E2E8F0 1px, transparent 1px),
+  linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
+  background-size: 16px 16px; padding: 14px; }
+.canvas-block {
+  border: 2px solid var(--border); box-shadow: 3px 3px 0 #000;
+  font-size: .74rem; font-weight: 700; padding: 8px 10px;
+  position: relative; z-index: 2; background: #fff; width: max-content;
+}
+.cb-start { background: #BFDBFE; margin: 0 auto 0 18px; }
+.cb-for { background: #DBEAFE; margin: 14px 0 0 34px; }
+.cb-set { background: #DCFCE7; margin: 14px 0 0 54px; }
+.cb-end { background: #FCE7F3; margin: 14px 0 0 18px; }
+.canvas-wire { position: absolute; background: var(--border); z-index: 1; }
+.w1 { width: 2px; height: 14px; left: 106px; top: 58px; }
+.w2 { width: 2px; height: 14px; left: 130px; top: 132px; }
+.w3 { width: 2px; height: 40px; left: 106px; top: 208px; }
+.mock-code { border-left: 3px solid var(--border); background: #0F172A; padding: 12px; font-family: var(--mono); font-size: .68rem; line-height: 1.75; color: #E2E8F0; }
+.mock-code h4 { font-size: .62rem; letter-spacing: .08em; color: #94A3B8; margin-bottom: 8px; font-family: var(--font); }
+.cl  { white-space: pre; }
+.kw  { color: #93C5FD; } .fn { color: #FDBA74; } .st { color: #86EFAC; } .cm { color: #64748B; } .vr { color: #FDE68A; }
+.mock-status {
+  border-top: 3px solid var(--border); background: #E2E8F0;
+  padding: 6px 12px; font-size: .68rem; font-weight: 600; color: var(--text-muted);
+  display: flex; justify-content: space-between;
+}
+
+/* ===== Sections ===== */
+section { padding: 64px 0; }
+.section-alt { background: #EFF6FF; border-top: 3px solid var(--border); border-bottom: 3px solid var(--border); }
+.section-head { margin-bottom: 40px; }
+.section-head h2 { font-size: clamp(1.6rem, 3.5vw, 2.3rem); font-weight: 900; letter-spacing: -.01em; }
+.section-head p { color: var(--text-muted); margin-top: 8px; max-width: 60ch; }
+.kicker {
+  display: inline-block; font-size: .78rem; font-weight: 800; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--primary); margin-bottom: 10px;
+}
+
+/* ===== Features ===== */
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.feature {
+  background: var(--surface); border: 3px solid var(--border);
+  box-shadow: var(--shadow); padding: 22px;
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+.feature:hover { transform: translate(-3px,-3px); box-shadow: var(--shadow-lg); }
+.feature .icon {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  border: 2px solid var(--border); box-shadow: 2px 2px 0 #000; margin-bottom: 14px;
+  background: var(--secondary); color: #fff;
+}
+.feature h3 { font-size: 1.02rem; font-weight: 800; margin-bottom: 6px; }
+.feature p { font-size: .9rem; color: var(--text-muted); }
+.f1 { background: var(--primary); } .f2 { background: var(--cta); } .f3 { background: #16A34A; }
+.f4 { background: #7C3AED; } .f5 { background: #0EA5E9; } .f6 { background: #E11D48; }
+
+/* ===== Blocks table ===== */
+.block-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 3px solid var(--border); box-shadow: var(--shadow); }
+.block-table th, .block-table td { border: 2px solid var(--border); padding: 12px 16px; text-align: left; font-size: .92rem; }
+.block-table th { background: #DBEAFE; font-weight: 800; }
+.block-table td b { font-weight: 800; }
+
+/* ===== Quick start ===== */
+.quickstart { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+.qs-steps { list-style: none; counter-reset: step; }
+.qs-steps li { counter-increment: step; display: flex; gap: 14px; margin-bottom: 18px; align-items: flex-start; }
+.qs-steps li::before {
+  content: counter(step);
+  flex-shrink: 0; width: 34px; height: 34px; display: grid; place-items: center;
+  background: var(--primary); color: #fff; font-weight: 800;
+  border: 2px solid var(--border); box-shadow: 2px 2px 0 #000;
+}
+.qs-steps b { display: block; font-weight: 800; }
+.qs-steps span { color: var(--text-muted); font-size: .92rem; }
+.code-box { background: #0F172A; border: 3px solid var(--border); box-shadow: var(--shadow); padding: 20px; font-family: var(--mono); font-size: .88rem; line-height: 1.8; color: #E2E8F0; overflow-x: auto; }
+.code-box .win { color: #64748B; } .code-box .cmd { color: #86EFAC; }
+
+/* ===== Roadmap ===== */
+.roadmap { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.ri {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--surface); border: 3px solid var(--border); box-shadow: 2px 2px 0 #000;
+  padding: 12px 16px;
+  font-size: .93rem; font-weight: 600;
+}
+.ri .tick, .ri .plan {
+  flex-shrink: 0; width: 22px; height: 22px; display: grid; place-items: center;
+  border: 2px solid var(--border); font-size: .8rem; font-weight: 900;
+}
+.ri .tick { background: #22C55E; color: #fff; }
+.ri .plan { background: var(--surface); }
+.ri.done span { color: var(--text-muted); }
+
+/* ===== CTA ===== */
+.cta-band { text-align: center; }
+.cta-box {
+  background: var(--primary); border: 3px solid var(--border); box-shadow: var(--shadow-lg);
+  padding: 52px 32px; color: #fff;
+}
+.cta-box h2 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); font-weight: 900; }
+.cta-box p { margin: 12px auto 28px; opacity: .92; max-width: 52ch; }
+.cta-box .btn-cta { background: var(--cta); }
+.cta-box .btn-ghost { background: #fff; color: var(--text); }
+
+/* ===== Footer ===== */
+footer { border-top: 3px solid var(--border); background: #E2E8F0; padding: 28px 0; }
+.footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; font-size: .9rem; }
+.footer-inner a { color: var(--primary-dark); font-weight: 700; text-decoration: none; }
+.footer-inner a:hover { text-decoration: underline; }
+
+/* ===== Responsive ===== */
+@media (max-width: 1024px) {
+  .hero-grid { grid-template-columns: 1fr; }
+  .features { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .quickstart, .roadmap { grid-template-columns: 1fr; }
+  .mock-body { grid-template-columns: 1fr 165px; }
+  .mock-toolbox { display: none; }
+}
+@media (max-width: 375px) {
+  .features { grid-template-columns: 1fr; }
+  .mock-body { grid-template-columns: 1fr; }
+  .mock-code { border-left: none; border-top: 3px solid var(--border); }
+  .hero { padding: 48px 0 40px; }
+  .block-table th, .block-table td { padding: 10px 8px; font-size: .86rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a class="logo" href="#top">
+      <span class="logo-badge" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"><rect x="3" y="3" width="8" height="7"/><rect x="13" y="7" width="8" height="7"/><path d="M11 6.5h2M11 17.5h2"/><rect x="3" y="14" width="8" height="7"/></svg>
+      </span>
+      VBA-Visual
+    </a>
+    <div class="nav-links">
+      <a href="#features">功能</a>
+      <a href="#blocks">积木分类</a>
+      <a href="#quickstart">快速开始</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="https://github.com/okazaki112/VBA-Visual" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<main id="top">
+  <!-- Hero -->
+  <header class="hero container">
+    <div class="hero-grid">
+      <div>
+        <span class="hero-tag">Electron + Vue3 桌面应用 · v1.10.0 · MIT 开源</span>
+        <h1>拖拽积木，<span class="accent">轻松生成 VBA 代码</span></h1>
+        <p class="hero-sub">VBA-Visual 把 Excel 自动化开发变成"搭积木"：从工具箱拖出积木块，在画布上连接编排程序流程，应用实时生成规范的 VBA 代码——无需记忆复杂语法。</p>
+        <div class="hero-actions">
+          <a class="btn btn-cta" href="https://github.com/okazaki112/VBA-Visual/releases" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            下载便携版
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/okazaki112/VBA-Visual" target="_blank" rel="noopener">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.17-.02-2.12-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11 11 0 0 1 5.8 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.7 5.38-5.27 5.67.41.36.78 1.06.78 2.14 0 1.54-.01 2.79-.01 3.17 0 .31.21.68.8.56A11.52 11.52 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+            查看源码
+          </a>
+        </div>
+        <div class="hero-badges">
+          <span class="badge">Windows 10 / 11</span>
+          <span class="badge">便携版免安装</span>
+          <span class="badge">7 大积木分类</span>
+          <span class="badge">MIT License</span>
+        </div>
+      </div>
+
+      <!-- 纯 CSS 应用窗口模拟图 -->
+      <div class="app-mock" role="img" aria-label="VBA-Visual 应用界面模拟图：左侧积木工具箱，中间画布编排积木，右侧实时生成 VBA 代码">
+        <div class="mock-titlebar">
+          <span class="dot dot-r"></span><span class="dot dot-y"></span><span class="dot dot-g"></span>
+          <span class="mock-title">VBA 可视化编辑器 — 未命名项目*</span>
+        </div>
+        <div class="mock-body">
+          <div class="mock-toolbox">
+            <h4>积木工具箱</h4>
+            <div class="mock-block mb-flow">▷ For 循环</div>
+            <div class="mock-block mb-excel">▣ 单元格赋值</div>
+            <div class="mock-block mb-data">≡ 字符串处理</div>
+            <div class="mock-block mb-io">✉ 消息框</div>
+          </div>
+          <div class="mock-canvas">
+            <div class="canvas-block cb-start">▶ 开始</div>
+            <span class="canvas-wire w1" aria-hidden="true"></span>
+            <div class="canvas-block cb-for">⟳ For i = 1 To 10</div>
+            <span class="canvas-wire w2" aria-hidden="true"></span>
+            <div class="canvas-block cb-set">▣ Cells(i, 1).Value = i</div>
+            <span class="canvas-wire w3" aria-hidden="true"></span>
+            <div class="canvas-block cb-end">■ Next i</div>
+          </div>
+          <div class="mock-code">
+            <h4>VBA 代码预览</h4>
+            <div class="cl"><span class="cm">' 实时生成</span></div>
+            <div class="cl"><span class="kw">Sub</span> <span class="fn">Demo</span>()</div>
+            <div class="cl">  <span class="kw">Dim</span> <span class="vr">i</span> <span class="kw">As</span> <span class="kw">Long</span></div>
+            <div class="cl">  <span class="kw">For</span> <span class="vr">i</span> = 1 <span class="kw">To</span> 10</div>
+            <div class="cl">    Cells(<span class="vr">i</span>, 1).Value = <span class="vr">i</span></div>
+            <div class="cl">  <span class="kw">Next</span> <span class="vr">i</span></div>
+            <div class="cl"><span class="kw">End Sub</span></div>
+          </div>
+        </div>
+        <div class="mock-status"><span>画布积木：4</span><span>静态校验：0 错误</span></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Features -->
+  <section class="section-alt" id="features">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">Features</span>
+        <h2>不只是画布：从拖拽到校验的完整闭环</h2>
+        <p>每一块积木都带着语法模板、变量感知与静态校验，生成的代码即拿即用。</p>
+      </div>
+      <div class="features">
+        <div class="feature">
+          <div class="icon f1" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></div>
+          <h3>可视化积木编程</h3>
+          <p>拖拽积木块即可生成 VBA 代码，If / For / Do / With 容器化嵌套，流程在画布上一目了然。</p>
+        </div>
+        <div class="feature">
+          <div class="icon f2" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></div>
+          <h3>规则智能</h3>
+          <p>变量感知与自动补全、未声明告警、一键声明 / 重命名联动、静态校验与错误定位。</p>
+        </div>
+        <div class="feature">
+          <div class="icon f3" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></div>
+          <h3>行级双向映射</h3>
+          <p>实时代码预览，点击代码行反向定位画布积木；支持语法高亮与代码内查找。</p>
+        </div>
+        <div class="feature">
+          <div class="icon f4" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M8 6h8M8 10h8M8 14h5"/></svg></div>
+          <h3>命令面板 Ctrl+K</h3>
+          <p>统一搜索命令 / 积木 / 模板 / 画布积木，双手不离键盘完成一切。</p>
+        </div>
+        <div class="feature">
+          <div class="icon f5" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg></div>
+          <h3>项目管理</h3>
+          <p>保存 / 加载 / 最近项目 / 自动保存草稿与崩溃恢复 / 版本快照，工作不丢。</p>
+        </div>
+        <div class="feature">
+          <div class="icon f6" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square"><rect x="2" y="3" width="20" height="14" rx="1"/><path d="M8 21h8M12 17v4"/></svg></div>
+          <h3>原生桌面体验</h3>
+          <p>基于 Electron 构建，深浅多主题、小地图、状态栏、快捷键面板（F1 含入门指南）。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Blocks -->
+  <section id="blocks">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">Block Library</span>
+        <h2>7 大积木分类，覆盖 Excel 自动化主场景</h2>
+      </div>
+      <table class="block-table">
+        <thead><tr><th>分类</th><th>包含积木</th></tr></thead>
+        <tbody>
+          <tr><td><b>基础</b></td><td>变量声明、常量声明、赋值语句、注释</td></tr>
+          <tr><td><b>流程控制</b></td><td>If 条件判断、For 循环、Do While 循环、Select Case</td></tr>
+          <tr><td><b>Excel 操作</b></td><td>单元格读写、区域选择、工作表操作、公式设置</td></tr>
+          <tr><td><b>数据处理</b></td><td>字符串处理、数学运算、日期时间操作</td></tr>
+          <tr><td><b>交互</b></td><td>消息框、输入框、状态栏</td></tr>
+          <tr><td><b>文件操作</b></td><td>文件对话框、文件读写</td></tr>
+          <tr><td><b>高级</b></td><td>Sub/Function 定义、错误处理、数组、字典</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Quick start -->
+  <section class="section-alt" id="quickstart">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">Quick Start</span>
+        <h2>三步上手</h2>
+      </div>
+      <div class="quickstart">
+        <ol class="qs-steps">
+          <li><div><b>下载便携版</b><span>前往 GitHub Releases 下载 exe，免安装双击即用（Windows 10 / 11）。</span></div></li>
+          <li><div><b>拖拽积木编排流程</b><span>从工具箱拖出积木连接成流程，属性面板配置参数，Ctrl+K 快速调用。</span></div></li>
+          <li><div><b>复制生成的代码</b><span>实时预览 VBA 代码，复制进 Excel VBA 编辑器即可运行。</span></div></li>
+        </ol>
+        <div class="code-box" role="img" aria-label="从源码构建命令">
+          <div><span class="win"># 克隆仓库并启动开发模式</span></div>
+          <div><span class="cmd">git clone</span> https://github.com/okazaki112/VBA-Visual.git</div>
+          <div><span class="cmd">cd</span> VBA-Visual</div>
+          <div>&nbsp;</div>
+          <div><span class="cmd">pnpm install</span>   <span class="win"># 安装依赖</span></div>
+          <div><span class="cmd">pnpm dev</span>       <span class="win"># 启动开发服务器</span></div>
+          <div><span class="cmd">pnpm build</span>     <span class="win"># 构建生产版本</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Roadmap -->
+  <section id="roadmap">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">Roadmap</span>
+        <h2>持续迭代中</h2>
+      </div>
+      <div class="roadmap">
+        <div class="ri done"><span class="tick" aria-hidden="true">✓</span><span>v1.10.0 写代码交互智能化 — code 属性编辑器全面升级</span></div>
+        <div class="ri done"><span class="tick" aria-hidden="true">✓</span><span>v1.9.0 工程质量收官 — vendor 拆分 / 行为测试常态化</span></div>
+        <div class="ri done"><span class="tick" aria-hidden="true">✓</span><span>v1.7.0 命令面板 Ctrl+K</span></div>
+        <div class="ri done"><span class="tick" aria-hidden="true">✓</span><span>v1.6.0 双体容器 — If-Else 双分支子积木编排</span></div>
+        <div class="ri"><span class="plan" aria-hidden="true"></span><span>macOS / Linux 打包</span></div>
+        <div class="ri"><span class="plan" aria-hidden="true"></span><span>积木分类扩展（Word / Outlook 操作）</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-band">
+    <div class="container">
+      <div class="cta-box">
+        <h2>让 Excel 自动化像搭积木一样简单</h2>
+        <p>免费、开源、免安装。下载便携版立即开始，或从源码构建参与贡献。</p>
+        <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+          <a class="btn btn-cta" href="https://github.com/okazaki112/VBA-Visual/releases" target="_blank" rel="noopener">前往 Releases 下载</a>
+          <a class="btn btn-ghost" href="https://github.com/okazaki112/VBA-Visual/blob/main/README.md" target="_blank" rel="noopener">阅读文档</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container footer-inner">
+    <div>VBA-Visual — 基于 MIT License 开源</div>
+    <div><a href="https://github.com/okazaki112/VBA-Visual" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/okazaki112/VBA-Visual/releases" target="_blank" rel="noopener">Releases</a> · <a href="https://github.com/okazaki112/VBA-Visual/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a></div>
+  </div>
+</footer>
+
+</body>
+</html>
