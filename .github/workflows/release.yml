@@ -85,3 +85,43 @@ jobs:
           fi
         env:
           GH_TOKEN: "${{ github.token }}"
+
+  nightly:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'  # 仅 push main 滚动更新；tag/dispatch 不动它
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: vba-visual-windows-x64
+          path: dist
+
+      - name: 资产改名（固定名供 clobber 替换）
+        shell: bash
+        run: |
+          EXE=$(ls dist/*.exe | head -n 1)
+          mv "$EXE" "dist/VBA-Visual-nightly-portable.exe"
+
+      - name: 将 nightly tag 重指向当前提交
+        shell: bash
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/nightly" > /dev/null 2>&1; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/nightly" -f sha="$GITHUB_SHA" --silent
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/nightly -f sha="$GITHUB_SHA" --silent
+          fi
+        env:
+          GH_TOKEN: "${{ github.token }}"
+
+      - name: Create or update Nightly Release（幂等，滚动替换资产）
+        run: |
+          printf '滚动构建（prerelease），随每次 push main 自动替换。\n\n- 构建来源: main@%s\n- 构建时间: %s\n\n> 想要稳定版本请到 [Latest Release](https://github.com/%s/releases/latest) 下载。\n' \
+            "${GITHUB_SHA::7}" "$(date -u '+%Y-%m-%d %H:%M UTC')" "$GITHUB_REPOSITORY" > notes.md
+          if gh release view nightly --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload nightly "dist/VBA-Visual-nightly-portable.exe" --clobber --repo "$GITHUB_REPOSITORY"
+            gh release edit nightly --title "Nightly Build（最新 main 构建）" --notes-file notes.md --prerelease --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create nightly "dist/VBA-Visual-nightly-portable.exe" --title "Nightly Build（最新 main 构建）" --notes-file notes.md --prerelease --repo "$GITHUB_REPOSITORY"
+          fi
+        env:
+          GH_TOKEN: "${{ github.token }}"

@@ -88,7 +88,10 @@ VBA 是 Excel 自动化的主力语言，但手写代码门槛不低：语法记
 
 ### 下载安装
 
-前往 [Releases](https://github.com/okazaki112/VBA-Visual/releases) 页面下载最新的 `exe`（便携版，免安装，双击即用）。
+- **稳定版**：前往 [Latest Release](https://github.com/okazaki112/VBA-Visual/releases/latest) 下载 `VBA-Visual-v*.*.*-portable.exe`
+- **尝鲜版**：想第一时间体验 main 分支最新功能，下载 [Nightly Build](https://github.com/okazaki112/VBA-Visual/releases/tag/nightly)（预发布，随每次推送自动替换，可能不够稳定）
+
+两者均为便携版（免安装，双击即用），系统要求 Windows 10 / 11。
 
 ### 从源码运行
 
