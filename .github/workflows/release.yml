@@ -2,7 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags: ["v*"]          # 正式发版入口
+    tags: ["v*"]          # 正式发版入口（build + release）
+    branches: [main]      # 推送即触发完整打包验证（release job 由 tag 守卫自动跳过）
   workflow_dispatch:      # 手动试跑入口（触发器只在默认分支生效）
 
 permissions: { contents: write }  # 创建 Release 必需
@@ -54,6 +55,7 @@ jobs:
         with:
           name: vba-visual-windows-x64
           path: dist/*.exe
+          retention-days: 3   # 短保留防存储累积；tag 发版的正式资产进 Release 附件
 
   release:
     needs: build
