@@ -1,0 +1,85 @@
+name: Build and Release
+
+on:
+  push:
+    tags: ["v*"]          # 正式发版入口
+  workflow_dispatch:      # 手动试跑入口（触发器只在默认分支生效）
+
+permissions: { contents: write }  # 创建 Release 必需
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 pnpm 9
+        run: npm install -g pnpm@9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: 版本一致性校验（tag ↔ package.json 单一事实源）
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          PKG_VER=$(node -p "require('./package.json').version")
+          if [ "${GITHUB_REF_NAME#v}" != "$PKG_VER" ]; then
+            echo "::error::tag 与 package.json version 不一致: ${GITHUB_REF_NAME#v} != $PKG_VER"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build (vue-tsc 类型检查 + vite build + electron-builder)
+        run: pnpm build
+
+      # 行为测试（pnpm test）为环境依赖型：需本地构建 .bundles 且依赖桌面 GUI，
+      # 不进 CI 门禁，验收以本地 `pnpm test` 为准。
+
+      - name: 收集产物（统一命名）
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $exe = Get-ChildItem release -Filter *.exe | Select-Object -First 1
+          if (-not $exe) { Write-Error "release/ 下未找到 exe 产物"; exit 1 }
+          $ver = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          Copy-Item $exe.FullName "dist/VBA-Visual-v$ver-portable.exe"
+          Get-ChildItem dist | ForEach-Object { Write-Host "artifact: $($_.Name)" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vba-visual-windows-x64
+          path: dist/*.exe
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')  # dispatch 不建 Release（ref 是分支名）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4            # 拉 doc/v<版本>.md 作正文源
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: vba-visual-windows-x64
+          path: dist
+
+      - name: 生成本版本 Release 说明
+        shell: bash
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          DOC="doc/v${VER}.md"
+          if [ -f "$DOC" ]; then cp "$DOC" notes.md; else echo "Release ${GITHUB_REF_NAME}" > notes.md; fi
+
+      - name: Create or update GitHub Release（幂等）
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --title "VBA-Visual ${GITHUB_REF_NAME}" --notes-file notes.md --repo "$GITHUB_REPOSITORY"
+          fi
+        env:
+          GH_TOKEN: "${{ github.token }}"

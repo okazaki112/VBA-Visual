@@ -1,0 +1,35 @@
+# 行为一致：文本文件入库用 LF，checkout 按平台原生行尾
+* text=auto
+
+# Windows 源码/脚本保持 CRLF（cmd 批处理 / PowerShell 需要）
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.rc text eol=crlf
+*.manifest text eol=crlf
+
+# Web 前端源码统一 LF
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.ts text eol=lf
+*.vue text eol=lf
+*.json text eol=lf
+
+# 明确的二进制（防止误做行尾转换）
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.exe binary
+*.dll binary
+*.lib binary
+*.bas binary

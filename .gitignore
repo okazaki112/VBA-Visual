@@ -1,0 +1,43 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+dist-electron
+release
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# release build output
+发布版/
+
+# 行为测试构建产物
+scripts/behavior-tests/.bundles/
+
+# 大媒体文件不进 .git（本地保留供 README 预览，GitHub 侧建议改用 Release 附件）
+public/demo.gif
+public/001.png
+public/002.png
+public/003.png
+public/004.png
+public/005.png
+
+# 内部工作日志
+task-plan/
